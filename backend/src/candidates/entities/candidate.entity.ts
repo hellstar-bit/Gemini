@@ -1,4 +1,4 @@
-// backend/src/candidates/entities/candidate.entity.ts
+// backend/src/candidates/entities/candidate.entity.ts - CORREGIDA
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
 import { Group } from '../../groups/entities/group.entity';
 
@@ -26,10 +26,10 @@ export class Candidate {
   description: string;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
-  position: string; // Cargo al que aspira
+  position: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
-  party: string; // Partido político
+  party: string;
 
   @OneToMany(() => Group, group => group.candidate)
   groups: Group[];

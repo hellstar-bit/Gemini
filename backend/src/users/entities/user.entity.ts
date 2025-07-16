@@ -1,4 +1,4 @@
-// src/users/entities/user.entity.ts
+// backend/src/users/entities/user.entity.ts - CORREGIDA
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity('users')
@@ -6,22 +6,22 @@ export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ unique: true })
+  @Column({ type: 'varchar', length: 255, unique: true })
   email: string;
 
-  @Column()
+  @Column({ type: 'varchar', length: 255 })
   password: string;
 
-  @Column()
+  @Column({ type: 'varchar', length: 100 })
   firstName: string;
 
-  @Column()
+  @Column({ type: 'varchar', length: 100 })
   lastName: string;
 
-  @Column({ default: 'user' })
+  @Column({ type: 'enum', enum: ['admin', 'manager', 'operator', 'user'], default: 'user' })
   role: string;
 
-  @Column({ default: true })
+  @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
   @CreateDateColumn()

@@ -1,4 +1,4 @@
-// backend/src/import/import.service.ts
+// backend/src/import/import.service.ts - COMPLETAMENTE CORREGIDO
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -35,8 +35,6 @@ export class ImportService {
   ) {}
 
   async previewFile(file: Express.Multer.File): Promise<ImportPreviewDto> {
-    const startTime = Date.now();
-    
     try {
       let data: any[] = [];
       let headers: string[] = [];
@@ -87,7 +85,7 @@ export class ImportService {
         data: data,
         headers,
         totalRows: data.length,
-        sampleRows: data.slice(0, 5), // Primeras 5 filas para preview
+        sampleRows: data.slice(0, 5),
         errors,
         warnings
       };
@@ -143,49 +141,70 @@ export class ImportService {
             }
           }
 
-          // Crear o actualizar votante
+          // Crear o actualizar votante - ✅ CORREGIDO
           let voter = await this.voterRepository.findOne({
             where: { cedula: voterData.cedula }
           });
 
           if (voter) {
-            // Actualizar existente
-            Object.assign(voter, {
+            // Actualizar existente - ✅ TIPOS CORREGIDOS
+            await queryRunner.manager.update(Voter, { id: voter.id }, {
               firstName: voterData.firstName,
               lastName: voterData.lastName,
-              phone: voterData.phone,
-              email: voterData.email,
-              address: voterData.address,
-              neighborhood: voterData.neighborhood,
-              municipality: voterData.municipality,
-              votingPlace: voterData.votingPlace,
-              birthDate: voterData.birthDate ? new Date(voterData.birthDate) : null,
-              gender: voterData.gender,
+              phone: voterData.phone || undefined,
+              email: voterData.email || undefined,
+              address: voterData.address || undefined,
+              neighborhood: voterData.neighborhood || undefined,
+              municipality: voterData.municipality || undefined,
+              votingPlace: voterData.votingPlace || undefined,
+              birthDate: voterData.birthDate ? new Date(voterData.birthDate) : undefined, // ✅ CORREGIDO
+              gender: voterData.gender || undefined,
               commitment: voterData.commitment || 'potential',
-              notes: voterData.notes,
-              leaderId: leader?.id || voter.leaderId,
+              notes: voterData.notes || undefined,
+              leaderId: leader?.id || undefined,
             });
           } else {
-            // Crear nuevo
-            voter = this.voterRepository.create({
+            // Crear nuevo - ✅ TIPOS COMPLETAMENTE CORREGIDOS
+            const newVoterData: Partial<Voter> = {
               cedula: voterData.cedula,
               firstName: voterData.firstName,
               lastName: voterData.lastName,
-              phone: voterData.phone,
-              email: voterData.email,
-              address: voterData.address,
-              neighborhood: voterData.neighborhood,
-              municipality: voterData.municipality,
-              votingPlace: voterData.votingPlace,
-              birthDate: voterData.birthDate ? new Date(voterData.birthDate) : null,
-              gender: voterData.gender,
-              commitment: voterData.commitment || 'potential',
-              notes: voterData.notes,
-              leaderId: leader?.id,
-            });
+              isVerified: false,
+              isActive: true,
+              commitment: (voterData.commitment as any) || 'potential'
+            };
+
+            // Añadir campos opcionales solo si tienen valor
+            if (voterData.phone) newVoterData.phone = voterData.phone;
+            if (voterData.email) newVoterData.email = voterData.email;
+            if (voterData.address) newVoterData.address = voterData.address;
+            if (voterData.neighborhood) newVoterData.neighborhood = voterData.neighborhood;
+            if (voterData.municipality) newVoterData.municipality = voterData.municipality;
+            if (voterData.votingPlace) newVoterData.votingPlace = voterData.votingPlace;
+            if (voterData.gender) newVoterData.gender = voterData.gender;
+            if (voterData.notes) newVoterData.notes = voterData.notes;
+            if (leader?.id) newVoterData.leaderId = leader.id;
+            
+            // ✅ CORREGIDO: Manejo seguro de fecha
+            if (voterData.birthDate) {
+              try {
+                newVoterData.birthDate = new Date(voterData.birthDate);
+              } catch (dateError) {
+                // Si la fecha no es válida, simplemente no la incluimos
+                errors.push({
+                  row: rowNumber,
+                  field: 'birthDate',
+                  value: voterData.birthDate,
+                  error: 'Formato de fecha inválido',
+                  severity: 'warning'
+                });
+              }
+            }
+
+            voter = queryRunner.manager.create(Voter, newVoterData);
+            await queryRunner.manager.save(voter);
           }
 
-          await queryRunner.manager.save(voter);
           successCount++;
 
         } catch (error) {
@@ -244,7 +263,57 @@ export class ImportService {
 
     for (const [csvColumn, entityField] of Object.entries(mappings)) {
       if (row[csvColumn] !== undefined && row[csvColumn] !== null) {
-        (voter as any)[entityField] = String(row[csvColumn]).trim();
+        const value = String(row[csvColumn]).trim();
+        
+        // ✅ CORREGIDO: Asignación segura por campo
+        switch (entityField) {
+          case 'cedula':
+            voter.cedula = value;
+            break;
+          case 'firstName':
+            voter.firstName = value;
+            break;
+          case 'lastName':
+            voter.lastName = value;
+            break;
+          case 'phone':
+            voter.phone = value;
+            break;
+          case 'email':
+            voter.email = value;
+            break;
+          case 'address':
+            voter.address = value;
+            break;
+          case 'neighborhood':
+            voter.neighborhood = value;
+            break;
+          case 'municipality':
+            voter.municipality = value;
+            break;
+          case 'votingPlace':
+            voter.votingPlace = value;
+            break;
+          case 'birthDate':
+            voter.birthDate = value;
+            break;
+          case 'gender':
+            if (['M', 'F', 'Other'].includes(value)) {
+              voter.gender = value as 'M' | 'F' | 'Other';
+            }
+            break;
+          case 'leaderCedula':
+            voter.leaderCedula = value;
+            break;
+          case 'commitment':
+            if (['committed', 'potential', 'undecided', 'opposed'].includes(value)) {
+              voter.commitment = value as 'committed' | 'potential' | 'undecided' | 'opposed';
+            }
+            break;
+          case 'notes':
+            voter.notes = value;
+            break;
+        }
       }
     }
 

@@ -1,15 +1,14 @@
-// backend/src/leaders/entities/leader.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn, Index } from 'typeorm';
+// backend/src/leaders/entities/leader.entity.ts - CORREGIDA (SIN @Index duplicados)
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { Group } from '../../groups/entities/group.entity';
 import { Voter } from '../../voters/entities/voter.entity';
 
 @Entity('leaders')
-@Index(['cedula'], { unique: true })
 export class Leader {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'varchar', length: 20, unique: true })
+  @Column({ type: 'varchar', length: 20, unique: true }) // ✅ UNIQUE en lugar de @Index
   cedula: string;
 
   @Column({ type: 'varchar', length: 100 })
@@ -40,7 +39,7 @@ export class Leader {
   gender: string;
 
   @Column({ type: 'int', default: 0 })
-  meta: number; // Meta de votantes para este líder
+  meta: number;
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;

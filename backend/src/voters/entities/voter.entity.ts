@@ -1,9 +1,8 @@
-// backend/src/voters/entities/voter.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
+// backend/src/voters/entities/voter.entity.ts - TIPOS CORREGIDOS
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Leader } from '../../leaders/entities/leader.entity';
 
 @Entity('voters')
-@Index(['cedula'], { unique: true })
 export class Voter {
   @PrimaryGeneratedColumn()
   id: number;
@@ -18,28 +17,28 @@ export class Voter {
   lastName: string;
 
   @Column({ type: 'varchar', length: 20, nullable: true })
-  phone: string;
+  phone?: string; // ✅ CORREGIDO: opcional
 
   @Column({ type: 'varchar', length: 255, nullable: true })
-  email: string;
+  email?: string; // ✅ CORREGIDO: opcional
 
   @Column({ type: 'text', nullable: true })
-  address: string;
+  address?: string; // ✅ CORREGIDO: opcional
 
   @Column({ type: 'varchar', length: 100, nullable: true })
-  neighborhood: string;
+  neighborhood?: string; // ✅ CORREGIDO: opcional
 
   @Column({ type: 'varchar', length: 100, nullable: true })
-  municipality: string;
+  municipality?: string; // ✅ CORREGIDO: opcional
 
   @Column({ type: 'varchar', length: 50, nullable: true })
-  votingPlace: string; // Mesa de votación
+  votingPlace?: string; // ✅ CORREGIDO: opcional
 
   @Column({ type: 'date', nullable: true })
-  birthDate: Date | null;
+  birthDate?: Date; // ✅ CORREGIDO: opcional
 
   @Column({ type: 'enum', enum: ['M', 'F', 'Other'], nullable: true })
-  gender: string;
+  gender?: string; // ✅ CORREGIDO: opcional
 
   @Column({ type: 'boolean', default: false })
   isVerified: boolean;
@@ -48,17 +47,17 @@ export class Voter {
   isActive: boolean;
 
   @Column({ type: 'enum', enum: ['committed', 'potential', 'undecided', 'opposed'], default: 'potential' })
-  commitment: string; // Nivel de compromiso
+  commitment: string;
 
   @Column({ name: 'leader_id', nullable: true })
-  leaderId: number;
+  leaderId?: number; // ✅ CORREGIDO: opcional
 
-  @ManyToOne(() => Leader, leader => leader.voters)
+  @ManyToOne(() => Leader, leader => leader.voters, { nullable: true }) // ✅ CORREGIDO: nullable
   @JoinColumn({ name: 'leader_id' })
-  leader: Leader;
+  leader?: Leader; // ✅ CORREGIDO: opcional
 
   @Column({ type: 'text', nullable: true })
-  notes: string; // Notas adicionales
+  notes?: string; // ✅ CORREGIDO: opcional
 
   @CreateDateColumn()
   createdAt: Date;

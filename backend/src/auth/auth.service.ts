@@ -1,9 +1,10 @@
+// backend/src/auth/auth.service.ts - CORREGIDO
 import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import * as bcrypt from 'bcrypt';
+import * as bcryptjs from 'bcryptjs'; // ✅ CORREGIDO: usar bcryptjs
 
 @Injectable()
 export class AuthService {
@@ -19,8 +20,8 @@ export class AuthService {
       throw new ConflictException('El email ya está registrado');
     }
 
-    // Hashear password
-    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+    // Hashear password con bcryptjs
+    const hashedPassword = await bcryptjs.hash(registerDto.password, 10); // ✅ CORREGIDO
 
     // Crear usuario
     const user = await this.usersService.create({
@@ -49,8 +50,8 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    // Verificar password
-    const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
+    // Verificar password con bcryptjs
+    const isPasswordValid = await bcryptjs.compare(loginDto.password, user.password); // ✅ CORREGIDO
     if (!isPasswordValid) {
       throw new UnauthorizedException('Credenciales inválidas');
     }

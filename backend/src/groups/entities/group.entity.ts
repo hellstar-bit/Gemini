@@ -1,4 +1,4 @@
-// backend/src/groups/entities/group.entity.ts
+// backend/src/groups/entities/group.entity.ts - CORREGIDA
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { Candidate } from '../../candidates/entities/candidate.entity';
 import { Leader } from '../../leaders/entities/leader.entity';
@@ -15,10 +15,10 @@ export class Group {
   description: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
-  zone: string; // Zona geográfica
+  zone: string;
 
   @Column({ type: 'int', default: 0 })
-  meta: number; // Meta de votantes para este grupo
+  meta: number;
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
@@ -39,7 +39,7 @@ export class Group {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  // Campos calculados (se llenan mediante consultas)
+  // Campos calculados
   leadersCount?: number;
   votersCount?: number;
 }
