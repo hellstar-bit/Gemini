@@ -1,4 +1,6 @@
+// frontend/src/pages/Dashboard.tsx - Versión actualizada con navegación funcional
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useAppSelector } from '../store/hooks';
 import {
   UsersIcon,
@@ -58,28 +60,32 @@ export const Dashboard: React.FC = () => {
       description: 'Cargar planillas Excel',
       icon: CloudArrowUpIcon,
       gradient: 'from-primary-500 to-primary-600',
-      href: '/operations/import'
+      href: '/operations/import', // Ruta funcional
+      isActive: true
     },
     {
       name: 'Gestionar Líderes',
       description: 'Ver y editar líderes',
       icon: EyeIcon,
       gradient: 'from-secondary-500 to-secondary-600',
-      href: '/campaign/leaders'
+      href: '/campaign/leaders',
+      isActive: false
     },
     {
       name: 'Ver Reportes',
       description: 'Generar informes',
       icon: DocumentTextIcon,
       gradient: 'from-purple-500 to-purple-600',
-      href: '/analytics/reports'
+      href: '/analytics/reports',
+      isActive: false
     },
     {
       name: 'Mapa Electoral',
       description: 'Vista geográfica',
       icon: GlobeAltIcon,
       gradient: 'from-green-500 to-green-600',
-      href: '/analytics/maps'
+      href: '/analytics/maps',
+      isActive: false
     },
   ];
 
@@ -203,21 +209,53 @@ export const Dashboard: React.FC = () => {
           <h3 className="text-xl font-bold text-gray-900 mb-6">Acciones Rápidas</h3>
           <div className="space-y-3">
             {quickActions.map((action, index) => (
-              <button 
-                key={action.name} 
-                className="w-full p-4 border border-gray-200 rounded-xl hover:border-transparent hover:shadow-lg transition-all duration-300 text-left group bg-gradient-to-r hover:from-gray-50 hover:to-primary-50"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <div className="flex items-center space-x-4">
-                  <div className={`w-10 h-10 bg-gradient-to-br ${action.gradient} rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-300`}>
-                    <action.icon className="w-5 h-5 text-white" />
+              action.isActive ? (
+                <Link
+                  key={action.name}
+                  to={action.href}
+                  className="w-full p-4 border border-gray-200 rounded-xl hover:border-transparent hover:shadow-lg transition-all duration-300 text-left group bg-gradient-to-r hover:from-gray-50 hover:to-primary-50 block"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-10 h-10 bg-gradient-to-br ${action.gradient} rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-300`}>
+                      <action.icon className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900 flex items-center">
+                        {action.name}
+                        {action.isActive && (
+                          <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                            Activo
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500">{action.description}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-sm font-semibold text-gray-900">{action.name}</div>
-                    <div className="text-xs text-gray-500">{action.description}</div>
+                </Link>
+              ) : (
+                <button 
+                  key={action.name} 
+                  className="w-full p-4 border border-gray-200 rounded-xl opacity-50 cursor-not-allowed text-left group"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                  disabled
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-10 h-10 bg-gradient-to-br ${action.gradient} rounded-lg flex items-center justify-center shadow-sm`}>
+                      <action.icon className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900 flex items-center">
+                        {action.name}
+                        <span className="ml-2 px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                          Próximamente
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500">{action.description}</div>
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+              )
             ))}
           </div>
         </div>

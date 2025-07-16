@@ -1,7 +1,8 @@
+// frontend/src/components/layout/Sidebar.tsx - Import corregido
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../store/hooks';
-import { logoutUser } from '../../store/slices/authSlice';
+import { logout } from '../../store/slices/authSlice'; // ✅ Corregido: import 'logout' en lugar de 'logoutUser'
 import {
   HomeIcon,
   UsersIcon,
@@ -106,7 +107,7 @@ export const Sidebar: React.FC = () => {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   const handleLogout = () => {
-    dispatch(logoutUser());
+    dispatch(logout()); // ✅ Corregido: usar 'logout' en lugar de 'logoutUser'
   };
 
   const toggleExpanded = (href: string) => {
@@ -174,44 +175,32 @@ export const Sidebar: React.FC = () => {
                     <NavLink
                       to={item.href}
                       className={({ isActive }) =>
-                        `flex items-center justify-center p-3 rounded-xl transition-all duration-300 group hover:shadow-md ${
-                          isActive 
-                            ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg transform scale-[1.05]' 
-                            : 'text-gray-700 hover:bg-gray-50'
+                        `flex items-center justify-center p-3 rounded-xl transition-all duration-300 group relative ${
+                          isActive
+                            ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg`
+                            : 'text-gray-600 hover:bg-gradient-to-r hover:from-gray-50 hover:to-primary-50 hover:text-primary-600'
                         }`
                       }
                       title={item.name}
                     >
-                      {({ isActive }) => (
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${
-                          isActive 
-                            ? 'bg-white/20' 
-                            : `bg-gradient-to-br ${item.gradient} shadow-sm`
-                        }`}>
-                          <item.icon className={`w-5 h-5 text-white`} />
-                        </div>
-                      )}
+                      <item.icon className="w-6 h-6" />
                     </NavLink>
                   ) : (
                     <button
                       onClick={() => toggleExpanded(item.href)}
-                      className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-300 group-hover:shadow-md ${
-                        expandedItems.includes(item.href) 
-                          ? 'bg-gradient-to-r from-primary-50 to-secondary-50 shadow-sm border border-primary-200/50' 
-                          : 'hover:bg-gray-50'
-                      }`}
+                      className="w-full flex items-center justify-between p-4 text-gray-600 hover:bg-gradient-to-r hover:from-gray-50 hover:to-primary-50 hover:text-primary-600 rounded-xl transition-all duration-300 group"
                     >
                       <div className="flex items-center space-x-4">
                         <div className={`w-10 h-10 bg-gradient-to-br ${item.gradient} rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-300`}>
                           <item.icon className="w-5 h-5 text-white" />
                         </div>
                         <div className="text-left">
-                          <div className="font-semibold text-gray-900 text-sm">{item.name}</div>
-                          <div className="text-xs text-gray-500">{item.description}</div>
+                          <div className="font-medium">{item.name}</div>
+                          <div className="text-xs text-gray-500 group-hover:text-primary-500">{item.description}</div>
                         </div>
                       </div>
                       <ChevronRightIcon 
-                        className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${
+                        className={`w-4 h-4 transition-transform duration-300 ${
                           expandedItems.includes(item.href) ? 'rotate-90' : ''
                         }`} 
                       />
@@ -222,62 +211,54 @@ export const Sidebar: React.FC = () => {
                   <NavLink
                     to={item.href}
                     className={({ isActive }) =>
-                      `flex items-center ${isCollapsed ? 'justify-center p-3' : 'space-x-4 p-4'} rounded-xl transition-all duration-300 group hover:shadow-md ${
-                        isActive 
-                          ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg transform scale-[1.02]' 
-                          : 'text-gray-700 hover:bg-gray-50'
-                      }`
+                      isCollapsed
+                        ? `flex items-center justify-center p-3 rounded-xl transition-all duration-300 group relative ${
+                            isActive
+                              ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg`
+                              : 'text-gray-600 hover:bg-gradient-to-r hover:from-gray-50 hover:to-primary-50 hover:text-primary-600'
+                          }`
+                        : `flex items-center space-x-4 p-4 rounded-xl transition-all duration-300 group ${
+                            isActive
+                              ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg`
+                              : 'text-gray-600 hover:bg-gradient-to-r hover:from-gray-50 hover:to-primary-50 hover:text-primary-600'
+                          }`
                     }
                     title={isCollapsed ? item.name : undefined}
                   >
-                    {({ isActive }) => (
+                    {isCollapsed ? (
+                      <item.icon className="w-6 h-6" />
+                    ) : (
                       <>
-                        <div className={`${isCollapsed ? 'w-8 h-8' : 'w-10 h-10'} rounded-lg flex items-center justify-center shadow-sm transition-all duration-300 ${
-                          isActive 
-                            ? 'bg-white/20' 
-                            : `bg-gradient-to-br ${item.gradient} group-hover:shadow-md`
-                        }`}>
+                        <div className={`w-10 h-10 bg-gradient-to-br ${item.gradient} rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-300`}>
                           <item.icon className="w-5 h-5 text-white" />
                         </div>
-                        {!isCollapsed && (
-                          <div>
-                            <div className={`font-semibold text-sm ${isActive ? 'text-white' : 'text-gray-900'}`}>
-                              {item.name}
-                            </div>
-                            <div className={`text-xs ${isActive ? 'text-white/80' : 'text-gray-500'}`}>
-                              {item.description}
-                            </div>
-                          </div>
-                        )}
+                        <div className="text-left">
+                          <div className="font-medium">{item.name}</div>
+                          <div className="text-xs text-gray-500 group-hover:text-primary-500">{item.description}</div>
+                        </div>
                       </>
                     )}
                   </NavLink>
                 )}
               </div>
 
-              {/* Children Items - Solo se muestran cuando NO está colapsado */}
-              {item.children && expandedItems.includes(item.href) && !isCollapsed && (
-                <div className="ml-6 mt-3 space-y-2 animate-slide-in">
+              {/* Children Items */}
+              {item.children && !isCollapsed && expandedItems.includes(item.href) && (
+                <div className="ml-6 mt-2 space-y-1 animate-slide-in">
                   {item.children.map((child) => (
                     <NavLink
                       key={child.href}
                       to={child.href}
                       className={({ isActive }) =>
-                        `flex items-center space-x-3 p-3 rounded-lg text-sm transition-all duration-300 ${
-                          isActive 
-                            ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-md' 
+                        `flex items-center space-x-3 p-3 rounded-lg transition-all duration-200 text-sm ${
+                          isActive
+                            ? 'bg-primary-100 text-primary-700 border-l-2 border-primary-500'
                             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                         }`
                       }
                     >
-                      {({ isActive }) => (
-                        <>
-                          <child.icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-gray-400'}`} />
-                          <span className={`font-medium ${isActive ? 'text-white' : ''}`}>
-                            {child.name}
-                          </span>
-                        </>
-                      )}
+                      <child.icon className="w-4 h-4" />
+                      <span>{child.name}</span>
                     </NavLink>
                   ))}
                 </div>
@@ -287,44 +268,40 @@ export const Sidebar: React.FC = () => {
         </div>
       </nav>
 
-      {/* User Section */}
-      <div className="relative p-4 border-t border-gray-100 bg-gradient-to-r from-gray-50 to-primary-50/30">
-        {!isCollapsed ? (
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3 p-3 bg-white rounded-xl shadow-sm border border-gray-100">
-              <div className="w-10 h-10 bg-gradient-to-br from-secondary-500 to-secondary-600 rounded-full flex items-center justify-center shadow-sm">
-                <span className="text-white text-sm font-bold">
+      {/* Footer */}
+      <div className={`border-t border-gray-100 ${isCollapsed ? 'p-2' : 'p-4'}`}>
+        {isCollapsed ? (
+          <button
+            onClick={handleLogout}
+            className="w-full p-3 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300"
+            title="Cerrar Sesión"
+          >
+            <ArrowRightOnRectangleIcon className="w-6 h-6 mx-auto" />
+          </button>
+        ) : (
+          <div className="space-y-3">
+            {/* User info */}
+            <div className="flex items-center space-x-3 p-3 bg-gradient-to-r from-gray-50 to-primary-50 rounded-xl">
+              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center shadow-sm">
+                <span className="text-white text-sm font-semibold">
                   {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">
+                <div className="text-sm font-medium text-gray-900 truncate">
                   {user?.firstName} {user?.lastName}
-                </p>
-                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                </div>
+                <div className="text-xs text-gray-500 truncate">{user?.role}</div>
               </div>
             </div>
+
+            {/* Logout button */}
             <button
               onClick={handleLogout}
-              className="w-full flex items-center space-x-3 p-3 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300 group hover:shadow-sm"
+              className="w-full flex items-center space-x-3 p-3 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300 group"
             >
-              <ArrowRightOnRectangleIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-              <span className="font-medium">Cerrar Sesión</span>
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-3 flex flex-col items-center">
-            <div className="w-10 h-10 bg-gradient-to-br from-secondary-500 to-secondary-600 rounded-full flex items-center justify-center shadow-sm">
-              <span className="text-white text-sm font-bold">
-                {user?.firstName?.charAt(0)}
-              </span>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="w-10 h-10 flex items-center justify-center text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300 group hover:shadow-sm"
-              title="Cerrar Sesión"
-            >
-              <ArrowRightOnRectangleIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              <ArrowRightOnRectangleIcon className="w-5 h-5" />
+              <span className="text-sm font-medium">Cerrar Sesión</span>
             </button>
           </div>
         )}
