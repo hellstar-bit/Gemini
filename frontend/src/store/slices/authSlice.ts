@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import type { AuthState, User } from '../../types';
+import { authService, type LoginCredentials } from '../../services/authService';
 
 const initialState: AuthState = {
   user: null,
@@ -11,22 +12,10 @@ const initialState: AuthState = {
 // Thunks asíncronos
 export const loginUser = createAsyncThunk(
   'auth/loginUser',
-  async (credentials: { email: string; password: string }) => {
-    const response = await fetch('http://localhost:3000/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(credentials),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Login failed');
-    }
-    
-    const data = await response.json();
-    localStorage.setItem('gemini_token', data.token);
-    return data;
+  async (credentials: LoginCredentials) => {
+    const response = await authService.login(credentials);
+    localStorage.setItem('gemini_token', response.token);
+    return response;
   }
 );
 
@@ -44,6 +33,9 @@ const authSlice = createSlice({
     },
     setUser: (state, action: PayloadAction<User>) => {
       state.user = action.payload;
+    },
+    setToken: (state, action: PayloadAction<string>) => {
+      state.token = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -72,5 +64,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearError, setUser } = authSlice.actions;
+export const { clearError, setUser, setToken } = authSlice.actions;
 export default authSlice.reducer;

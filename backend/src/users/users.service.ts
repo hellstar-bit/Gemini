@@ -19,12 +19,12 @@ export class UsersService {
     return this.userRepository.findOne({ where: { email } });
   }
 
-  async findById(id: number): Promise<User | null> {
+  async findById(id: number): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
     }
-    return user;
+    return user; // Ya sabemos que no es null por el check anterior
   }
 
   async findAll(): Promise<User[]> {
@@ -35,11 +35,11 @@ export class UsersService {
 
   async update(id: number, updateData: Partial<User>): Promise<User> {
     await this.userRepository.update(id, updateData);
-    return this.findById(id);
+    return this.findById(id); // findById ya retorna User (no null)
   }
 
   async remove(id: number): Promise<void> {
-    const user = await this.findById(id);
-    await this.userRepository.remove(user);
+    const user = await this.findById(id); // findById ya retorna User (no null)
+    await this.userRepository.remove(user); // Ahora user es definitivamente User, no null
   }
 }
