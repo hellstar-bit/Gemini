@@ -2,15 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
   UserGroupIcon, 
-  CheckBadgeIcon, 
-  ClockIcon,
-  UserIcon,
-  MapPinIcon,
-  ChartBarIcon,
-  FunnelIcon,
+ 
   PlusIcon,
-  DocumentArrowDownIcon,
-  Cog6ToothIcon
+  
 } from '@heroicons/react/24/outline';
 
 // Componentes del módulo
@@ -30,7 +24,7 @@ export const PlanilladosPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingPlanillado, setEditingPlanillado] = useState<Planillado | null>(null);
   const [stats, setStats] = useState<PlanilladosStatsDto | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [] = useState(false);
 
   // ✅ Datos ficticios para desarrollo
   const mockStats: PlanilladosStatsDto = {

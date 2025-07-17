@@ -42,4 +42,5 @@ export class Group {
   // Campos calculados
   leadersCount?: number;
   votersCount?: number;
+    planillados: any;
 }

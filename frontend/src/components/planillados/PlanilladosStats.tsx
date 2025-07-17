@@ -1,6 +1,7 @@
 // frontend/src/components/planillados/PlanilladosStats.tsx
 import React from 'react';
 import {
+  ArrowTrendingUpIcon,
   UserGroupIcon,
   CheckBadgeIcon,
   ClockIcon,
@@ -50,7 +51,7 @@ export const PlanilladosStats: React.FC<PlanilladosStatsProps> = ({ stats }) => 
     {
       label: 'Nuevos Hoy',
       value: stats.nuevosHoy.toLocaleString(),
-      icon: TrendingUpIcon,
+      icon: ArrowTrendingUpIcon,
       color: 'indigo',
       subtitle: `${stats.nuevosEstaSemana} esta semana`
     },

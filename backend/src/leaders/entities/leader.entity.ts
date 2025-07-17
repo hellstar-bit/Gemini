@@ -65,4 +65,5 @@ export class Leader {
 
   // Campo calculado
   votersCount?: number;
+    planillados: any;
 }

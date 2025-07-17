@@ -1,4 +1,4 @@
-// frontend/src/App.tsx - Actualizado
+// frontend/src/App.tsx - Actualizado con Planillados
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from './store';
@@ -6,6 +6,7 @@ import { AuthPage } from './pages/AuthPage';
 import { Dashboard } from './pages/Dashboard';
 import { ComingSoon } from './pages/ComingSoon';
 import { ImportPage } from './pages/operations/ImportPage';
+import { PlanilladosPage } from './pages/campaign/PlanilladosPage'; // ✅ NUEVO
 import { Layout } from './components/layout/Layout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import './index.css';
@@ -28,6 +29,7 @@ function App() {
               <Route path="campaign/candidates" element={<ComingSoon />} />
               <Route path="campaign/groups" element={<ComingSoon />} />
               <Route path="campaign/leaders" element={<ComingSoon />} />
+              <Route path="campaign/planillados" element={<PlanilladosPage />} /> {/* ✅ NUEVO */}
               
               {/* Centro de Operaciones */}
               <Route path="operations" element={<ComingSoon />} />

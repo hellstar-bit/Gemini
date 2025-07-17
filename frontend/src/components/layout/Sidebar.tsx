@@ -1,8 +1,8 @@
-// frontend/src/components/layout/Sidebar.tsx - Import corregido
+// frontend/src/components/layout/Sidebar.tsx - ACTUALIZADO
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../store/hooks';
-import { logout } from '../../store/slices/authSlice'; // ✅ Corregido: import 'logout' en lugar de 'logoutUser'
+import { logout } from '../../store/slices/authSlice';
 import {
   HomeIcon,
   UsersIcon,
@@ -25,7 +25,8 @@ import {
   DocumentTextIcon,
   UserGroupIcon,
   IdentificationIcon,
-  AcademicCapIcon
+  AcademicCapIcon,
+  ClipboardDocumentCheckIcon
 } from '@heroicons/react/24/outline';
 
 const navigation = [
@@ -40,12 +41,13 @@ const navigation = [
     name: 'Gestión de Campaña',
     href: '/campaign',
     icon: UsersIcon,
-    description: 'Candidatos, grupos y líderes',
+    description: 'Candidatos, grupos, líderes y planillados',
     gradient: 'from-primary-500 to-primary-600',
     children: [
       { name: 'Candidatos', href: '/campaign/candidates', icon: IdentificationIcon },
       { name: 'Grupos', href: '/campaign/groups', icon: UserGroupIcon },
       { name: 'Líderes', href: '/campaign/leaders', icon: AcademicCapIcon },
+      { name: 'Planillados', href: '/campaign/planillados', icon: ClipboardDocumentCheckIcon }, // ✅ NUEVO
     ]
   },
   {
@@ -104,10 +106,10 @@ export const Sidebar: React.FC = () => {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [expandedItems, setExpandedItems] = useState<string[]>(['/campaign']); // ✅ Expandido por defecto
 
   const handleLogout = () => {
-    dispatch(logout()); // ✅ Corregido: usar 'logout' en lugar de 'logoutUser'
+    dispatch(logout());
   };
 
   const toggleExpanded = (href: string) => {
@@ -126,7 +128,6 @@ export const Sidebar: React.FC = () => {
       {/* Header */}
       <div className="relative p-6 border-b border-gray-100 bg-gradient-to-r from-primary-50 to-secondary-50">
         {isCollapsed ? (
-          /* Header colapsado */
           <div className="flex flex-col items-center space-y-4">
             <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-lg">
               <span className="text-white font-bold text-xl">G</span>
@@ -139,7 +140,6 @@ export const Sidebar: React.FC = () => {
             </button>
           </div>
         ) : (
-          /* Header expandido */
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4 animate-slide-in">
               <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-lg">
@@ -170,7 +170,6 @@ export const Sidebar: React.FC = () => {
               {/* Parent Item */}
               <div className="group">
                 {item.children ? (
-                  // Items con hijos - en modo colapsado van directo a la ruta principal
                   isCollapsed ? (
                     <NavLink
                       to={item.href}
@@ -207,7 +206,6 @@ export const Sidebar: React.FC = () => {
                     </button>
                   )
                 ) : (
-                  // Items sin hijos
                   <NavLink
                     to={item.href}
                     className={({ isActive }) =>
@@ -217,13 +215,13 @@ export const Sidebar: React.FC = () => {
                               ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg`
                               : 'text-gray-600 hover:bg-gradient-to-r hover:from-gray-50 hover:to-primary-50 hover:text-primary-600'
                           }`
-                        : `flex items-center space-x-4 p-4 rounded-xl transition-all duration-300 group ${
+                        : `w-full flex items-center space-x-4 p-4 rounded-xl transition-all duration-300 group ${
                             isActive
                               ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg`
                               : 'text-gray-600 hover:bg-gradient-to-r hover:from-gray-50 hover:to-primary-50 hover:text-primary-600'
                           }`
                     }
-                    title={isCollapsed ? item.name : undefined}
+                    title={item.name}
                   >
                     {isCollapsed ? (
                       <item.icon className="w-6 h-6" />
@@ -234,7 +232,7 @@ export const Sidebar: React.FC = () => {
                         </div>
                         <div className="text-left">
                           <div className="font-medium">{item.name}</div>
-                          <div className="text-xs text-gray-500 group-hover:text-primary-500">{item.description}</div>
+                          <div className="text-xs opacity-80">{item.description}</div>
                         </div>
                       </>
                     )}
@@ -244,21 +242,26 @@ export const Sidebar: React.FC = () => {
 
               {/* Children Items */}
               {item.children && !isCollapsed && expandedItems.includes(item.href) && (
-                <div className="ml-6 mt-2 space-y-1 animate-slide-in">
+                <div className="ml-6 mt-2 space-y-1 animate-slide-down">
                   {item.children.map((child) => (
                     <NavLink
                       key={child.href}
                       to={child.href}
                       className={({ isActive }) =>
-                        `flex items-center space-x-3 p-3 rounded-lg transition-all duration-200 text-sm ${
+                        `flex items-center space-x-3 px-4 py-3 text-sm rounded-lg transition-all duration-300 group ${
                           isActive
-                            ? 'bg-primary-100 text-primary-700 border-l-2 border-primary-500'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                            ? 'bg-primary-100 text-primary-700 border-l-4 border-primary-500'
+                            : 'text-gray-600 hover:bg-primary-50 hover:text-primary-600 border-l-4 border-transparent hover:border-primary-300'
                         }`
                       }
                     >
                       <child.icon className="w-4 h-4" />
-                      <span>{child.name}</span>
+                      <span className="font-medium">{child.name}</span>
+                      {child.href === '/campaign/planillados' && (
+                        <span className="ml-auto bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-semibold">
+                          Nuevo
+                        </span>
+                      )}
                     </NavLink>
                   ))}
                 </div>
@@ -268,40 +271,40 @@ export const Sidebar: React.FC = () => {
         </div>
       </nav>
 
-      {/* Footer */}
-      <div className={`border-t border-gray-100 ${isCollapsed ? 'p-2' : 'p-4'}`}>
+      {/* User section */}
+      <div className="relative p-4 border-t border-gray-100 bg-gradient-to-r from-primary-50/50 to-secondary-50/50">
         {isCollapsed ? (
-          <button
-            onClick={handleLogout}
-            className="w-full p-3 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300"
-            title="Cerrar Sesión"
-          >
-            <ArrowRightOnRectangleIcon className="w-6 h-6 mx-auto" />
-          </button>
-        ) : (
-          <div className="space-y-3">
-            {/* User info */}
-            <div className="flex items-center space-x-3 p-3 bg-gradient-to-r from-gray-50 to-primary-50 rounded-xl">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center shadow-sm">
-                <span className="text-white text-sm font-semibold">
-                  {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900 truncate">
-                  {user?.firstName} {user?.lastName}
-                </div>
-                <div className="text-xs text-gray-500 truncate">{user?.role}</div>
-              </div>
+          <div className="flex flex-col items-center space-y-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold">
+              {user?.firstName?.charAt(0) || 'U'}
             </div>
-
-            {/* Logout button */}
             <button
               onClick={handleLogout}
-              className="w-full flex items-center space-x-3 p-3 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300 group"
+              className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+              title="Cerrar sesión"
             >
               <ArrowRightOnRectangleIcon className="w-5 h-5" />
-              <span className="text-sm font-medium">Cerrar Sesión</span>
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold shadow-md">
+                {user?.firstName?.charAt(0) || 'U'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">
+                  {user?.firstName} {user?.lastName}
+                </p>
+                <p className="text-xs text-gray-500 truncate">{user?.role}</p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50"
+              title="Cerrar sesión"
+            >
+              <ArrowRightOnRectangleIcon className="w-5 h-5" />
             </button>
           </div>
         )}
