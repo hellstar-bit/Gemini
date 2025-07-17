@@ -1,9 +1,8 @@
-// frontend/src/components/auth/ProtectedRoute.tsx
-import React, { useEffect, useState } from 'react';
+// frontend/src/components/auth/ProtectedRoute.tsx - VERSION FINAL
+import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../store/hooks';
-import { setUser, logout } from '../../store/slices/authSlice';
-import { authService } from '../../services/authService';
+import { verifyToken, logout, setInitialized } from '../../store/slices/authSlice';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -18,45 +17,40 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const dispatch = useAppDispatch();
   const location = useLocation();
-  const { user, token, isLoading } = useAppSelector((state) => state.auth);
-  const [isVerifying, setIsVerifying] = useState(true);
+  const { user, token, isLoading, isInitialized } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
-    const verifyToken = async () => {
-      setIsVerifying(true);
-      
+    const initializeAuth = async () => {
+      // Si ya está inicializado, no hacer nada
+      if (isInitialized) {
+        return;
+      }
+
       try {
-        // Si no hay token, redirigir a login
+        // Si no hay token, marcar como inicializado y salir
         if (!token) {
-          setIsVerifying(false);
+          dispatch(setInitialized());
           return;
         }
 
-        // Si no hay usuario pero hay token, verificar token
+        // Si hay token pero no usuario, verificar token
         if (token && !user) {
-          try {
-            const userData = await authService.verifyToken(token);
-            dispatch(setUser(userData.user));
-          } catch (error) {
-            // Token inválido, limpiar y redirigir
-            dispatch(logout());
-            localStorage.removeItem('token');
-          }
+          await dispatch(verifyToken(token)).unwrap();
+        } else {
+          // Si ya hay usuario y token, solo marcar como inicializado
+          dispatch(setInitialized());
         }
       } catch (error) {
         console.error('Error verificando token:', error);
         dispatch(logout());
-        localStorage.removeItem('token');
-      } finally {
-        setIsVerifying(false);
       }
     };
 
-    verifyToken();
-  }, [token, user, dispatch]);
+    initializeAuth();
+  }, [token, user, dispatch, isInitialized]);
 
   // Mostrar loading durante verificación inicial
-  if (isVerifying || isLoading) {
+  if (!isInitialized || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 flex items-center justify-center">
         <div className="text-center">
@@ -117,12 +111,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
 // Hook personalizado para verificar autenticación
 export const useAuth = () => {
-  const { user, token, isLoading } = useAppSelector((state) => state.auth);
+  const { user, token, isLoading, isInitialized } = useAppSelector((state) => state.auth);
   
   return {
     user,
     token,
     isLoading,
+    isInitialized,
     isAuthenticated: !!user && !!token,
     hasRole: (role: string) => user?.role === role,
     hasAnyRole: (roles: string[]) => user ? roles.includes(user.role) : false

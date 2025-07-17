@@ -1,5 +1,7 @@
+// frontend/src/components/auth/LoginForm.tsx - VERSION FINAL
 import React, { useState } from 'react';
 import { useAppDispatch } from '../../store/hooks';
+import { useNavigate } from 'react-router-dom';
 import { loginUser } from '../../store/slices/authSlice';
 import { addNotification } from '../../store/slices/appSlice';
 
@@ -9,6 +11,7 @@ interface LoginFormProps {
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -26,21 +29,34 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
     e.preventDefault();
     setIsLoading(true);
 
+    console.log('🔍 Iniciando login con:', formData);
+
     try {
-      await dispatch(loginUser(formData)).unwrap();
+      const result = await dispatch(loginUser(formData)).unwrap();
+      console.log('✅ Login exitoso - Resultado completo:', result);
+      
       dispatch(addNotification({
         type: 'success',
         title: '¡Bienvenido a GEMINI!',
-        message: 'Has iniciado sesión correctamente',
+        message: `Hola ${result.user.firstName}, has iniciado sesión correctamente`,
       }));
+
+      console.log('✅ Notificación enviada, navegando al dashboard...');
+      
+      // ¡ESTA ES LA CLAVE! Navegar al dashboard después del login exitoso
+      navigate('/dashboard', { replace: true });
+      
     } catch (error: any) {
+      console.error('❌ Error en login:', error);
+      
       dispatch(addNotification({
         type: 'error',
         title: 'Error de autenticación',
-        message: error.message || 'Credenciales inválidas',
+        message: error || 'Credenciales inválidas',
       }));
     } finally {
       setIsLoading(false);
+      console.log('🏁 Login finalizado');
     }
   };
 

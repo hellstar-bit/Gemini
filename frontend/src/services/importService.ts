@@ -329,90 +329,131 @@ class ImportService {
   }
 
   getFieldsForEntityType(entityType: string): EntityField[] {
-    const fieldConfigurations: Record<string, EntityField[]> = {
-      voters: [
-        { key: 'cedula', label: 'Cédula *', required: true, type: 'string', description: 'Número de identificación único', example: '12345678' },
-        { key: 'firstName', label: 'Primer Nombre *', required: true, type: 'string', description: 'Primer nombre del votante', example: 'Juan' },
-        { key: 'lastName', label: 'Apellido *', required: true, type: 'string', description: 'Apellidos del votante', example: 'Pérez García' },
-        { key: 'phone', label: 'Teléfono', required: false, type: 'string', description: 'Número de teléfono o celular', example: '3001234567' },
-        { key: 'email', label: 'Email', required: false, type: 'email', description: 'Correo electrónico', example: 'juan.perez@email.com' },
-        { key: 'address', label: 'Dirección', required: false, type: 'string', description: 'Dirección de residencia', example: 'Calle 123 #45-67' },
-        { key: 'neighborhood', label: 'Barrio', required: false, type: 'string', description: 'Barrio o sector', example: 'El Prado' },
-        { key: 'municipality', label: 'Municipio', required: false, type: 'string', description: 'Municipio de residencia', example: 'Barranquilla' },
-        { key: 'votingPlace', label: 'Mesa de Votación', required: false, type: 'string', description: 'Mesa o puesto de votación', example: 'Mesa 001' },
-        { key: 'birthDate', label: 'Fecha de Nacimiento', required: false, type: 'date', description: 'Fecha de nacimiento (YYYY-MM-DD)', example: '1990-05-15' },
-        { key: 'gender', label: 'Género', required: false, type: 'enum', description: 'Género (M, F, Other)', example: 'M' },
-        { key: 'leaderCedula', label: 'Cédula del Líder', required: false, type: 'string', description: 'Cédula del líder asignado', example: '87654321' },
-        { key: 'commitment', label: 'Compromiso', required: false, type: 'enum', description: 'Nivel de compromiso', example: 'committed' },
-        { key: 'notes', label: 'Notas', required: false, type: 'text', description: 'Observaciones adicionales', example: 'Votante activo' }
-      ],
-      leaders: [
-        { key: 'cedula', label: 'Cédula *', required: true, type: 'string', description: 'Número de identificación único', example: '87654321' },
-        { key: 'firstName', label: 'Primer Nombre *', required: true, type: 'string', description: 'Primer nombre del líder', example: 'María' },
-        { key: 'lastName', label: 'Apellido *', required: true, type: 'string', description: 'Apellidos del líder', example: 'González López' },
-        { key: 'phone', label: 'Teléfono', required: false, type: 'string', description: 'Número de teléfono', example: '3009876543' },
-        { key: 'email', label: 'Email', required: false, type: 'email', description: 'Correo electrónico', example: 'maria.gonzalez@email.com' },
-        { key: 'address', label: 'Dirección', required: false, type: 'string', description: 'Dirección de residencia', example: 'Carrera 50 #80-25' },
-        { key: 'neighborhood', label: 'Barrio', required: false, type: 'string', description: 'Barrio de trabajo', example: 'La Concepción' },
-        { key: 'municipality', label: 'Municipio', required: false, type: 'string', description: 'Municipio de operación', example: 'Barranquilla' },
-        { key: 'birthDate', label: 'Fecha de Nacimiento', required: false, type: 'date', description: 'Fecha de nacimiento', example: '1985-03-20' },
-        { key: 'gender', label: 'Género', required: false, type: 'enum', description: 'Género (M, F, Other)', example: 'F' },
-        { key: 'meta', label: 'Meta de Votantes', required: false, type: 'number', description: 'Objetivo de votantes', example: '50' },
-        { key: 'groupName', label: 'Nombre del Grupo', required: false, type: 'string', description: 'Grupo al que pertenece', example: 'Grupo Norte' }
-      ],
-      candidates: [
-        { key: 'name', label: 'Nombre Completo *', required: true, type: 'string', description: 'Nombre completo del candidato', example: 'Carlos Alberto Rodríguez' },
-        { key: 'email', label: 'Email *', required: true, type: 'email', description: 'Correo electrónico oficial', example: 'carlos.rodriguez@campaña.com' },
-        { key: 'phone', label: 'Teléfono', required: false, type: 'string', description: 'Número de contacto', example: '3151234567' },
-        { key: 'meta', label: 'Meta de Votos', required: false, type: 'number', description: 'Objetivo de votos', example: '50000' },
-        { key: 'description', label: 'Descripción', required: false, type: 'text', description: 'Descripción del candidato', example: 'Candidato con experiencia' },
-        { key: 'position', label: 'Cargo', required: false, type: 'string', description: 'Cargo al que aspira', example: 'Alcalde' },
-        { key: 'party', label: 'Partido Político', required: false, type: 'string', description: 'Partido político', example: 'Partido Democrático' }
-      ],
-      groups: [
-        { key: 'name', label: 'Nombre del Grupo *', required: true, type: 'string', description: 'Nombre del grupo', example: 'Grupo Norte Barranquilla' },
-        { key: 'description', label: 'Descripción', required: false, type: 'text', description: 'Descripción del grupo', example: 'Grupo de trabajo zona norte' },
-        { key: 'zone', label: 'Zona Geográfica', required: false, type: 'string', description: 'Zona de cobertura', example: 'Norte' },
-        { key: 'meta', label: 'Meta de Votantes', required: false, type: 'number', description: 'Objetivo de votantes', example: '500' },
-        { key: 'candidateName', label: 'Nombre del Candidato', required: false, type: 'string', description: 'Candidato que apoya', example: 'Carlos Alberto Rodríguez' }
-      ]
-    };
+  const fieldConfigurations: Record<string, EntityField[]> = {
+    voters: [
+      // ✅ Campos obligatorios (mantengo firstName y lastName para compatibilidad)
+      { key: 'cedula', label: 'Cédula *', required: true, type: 'string', description: 'Número de identificación único', example: '12345678' },
+      { key: 'firstName', label: 'Nombres *', required: true, type: 'string', description: 'Nombres completos del votante', example: 'Juan Carlos' },
+      { key: 'lastName', label: 'Apellidos *', required: true, type: 'string', description: 'Apellidos completos del votante', example: 'Pérez García' },
+      
+      // ✅ Campos de contacto
+      { key: 'phone', label: 'Celular', required: false, type: 'string', description: 'Número de celular', example: '3001234567' },
+      { key: 'email', label: 'Email', required: false, type: 'email', description: 'Correo electrónico', example: 'juan.perez@email.com' },
+      
+      // ✅ Campos de ubicación
+      { key: 'address', label: 'Dirección', required: false, type: 'string', description: 'Dirección de residencia', example: 'Calle 123 #45-67' },
+      { key: 'neighborhood', label: 'Barrio', required: false, type: 'string', description: 'Barrio o sector', example: 'El Prado' },
+      { key: 'municipality', label: 'Municipio', required: false, type: 'string', description: 'Municipio de residencia', example: 'Barranquilla' },
+      
+      // ✅ NUEVO - Fecha de expedición
+      { key: 'expeditionDate', label: 'Fecha de Expedición', required: false, type: 'date', description: 'Fecha de expedición de la cédula (DD/MM/YYYY)', example: '15/05/2010' },
+      
+      // ✅ Campos adicionales opcionales
+      { key: 'votingPlace', label: 'Mesa de Votación', required: false, type: 'string', description: 'Mesa o puesto de votación', example: 'Mesa 001' },
+      { key: 'birthDate', label: 'Fecha de Nacimiento', required: false, type: 'date', description: 'Fecha de nacimiento (DD/MM/YYYY)', example: '15/05/1990' },
+      { key: 'gender', label: 'Género', required: false, type: 'enum', description: 'Género (M, F, Otro)', example: 'M' },
+      { key: 'leaderCedula', label: 'Cédula del Líder', required: false, type: 'string', description: 'Cédula del líder asignado', example: '87654321' },
+      { key: 'commitment', label: 'Compromiso', required: false, type: 'enum', description: 'Nivel de compromiso', example: 'committed' },
+      { key: 'notes', label: 'Notas', required: false, type: 'text', description: 'Observaciones adicionales', example: 'Votante activo' }
+    ],
+    leaders: [
+      { key: 'cedula', label: 'Cédula *', required: true, type: 'string', description: 'Número de identificación único', example: '87654321' },
+      { key: 'firstName', label: 'Primer Nombre *', required: true, type: 'string', description: 'Primer nombre del líder', example: 'María' },
+      { key: 'lastName', label: 'Apellido *', required: true, type: 'string', description: 'Apellidos del líder', example: 'González López' },
+      { key: 'phone', label: 'Teléfono', required: false, type: 'string', description: 'Número de teléfono', example: '3009876543' },
+      { key: 'email', label: 'Email', required: false, type: 'email', description: 'Correo electrónico', example: 'maria.gonzalez@email.com' },
+      { key: 'address', label: 'Dirección', required: false, type: 'string', description: 'Dirección de residencia', example: 'Carrera 50 #80-25' },
+      { key: 'neighborhood', label: 'Barrio', required: false, type: 'string', description: 'Barrio de trabajo', example: 'La Concepción' },
+      { key: 'municipality', label: 'Municipio', required: false, type: 'string', description: 'Municipio de operación', example: 'Barranquilla' },
+      { key: 'birthDate', label: 'Fecha de Nacimiento', required: false, type: 'date', description: 'Fecha de nacimiento', example: '1985-03-20' },
+      { key: 'gender', label: 'Género', required: false, type: 'enum', description: 'Género (M, F, Other)', example: 'F' },
+      { key: 'meta', label: 'Meta de Votantes', required: false, type: 'number', description: 'Objetivo de votantes', example: '50' },
+      { key: 'groupName', label: 'Nombre del Grupo', required: false, type: 'string', description: 'Grupo al que pertenece', example: 'Grupo Norte' }
+    ],
+    candidates: [
+      { key: 'name', label: 'Nombre Completo *', required: true, type: 'string', description: 'Nombre completo del candidato', example: 'Carlos Alberto Rodríguez' },
+      { key: 'email', label: 'Email *', required: true, type: 'email', description: 'Correo electrónico oficial', example: 'carlos.rodriguez@campaña.com' },
+      { key: 'phone', label: 'Teléfono', required: false, type: 'string', description: 'Número de contacto', example: '3151234567' },
+      { key: 'meta', label: 'Meta de Votos', required: false, type: 'number', description: 'Objetivo de votos', example: '50000' },
+      { key: 'description', label: 'Descripción', required: false, type: 'text', description: 'Descripción del candidato', example: 'Candidato con experiencia' },
+      { key: 'position', label: 'Cargo', required: false, type: 'string', description: 'Cargo al que aspira', example: 'Alcalde' },
+      { key: 'party', label: 'Partido Político', required: false, type: 'string', description: 'Partido político', example: 'Partido Democrático' }
+    ],
+    groups: [
+      { key: 'name', label: 'Nombre del Grupo *', required: true, type: 'string', description: 'Nombre del grupo', example: 'Grupo Norte Barranquilla' },
+      { key: 'description', label: 'Descripción', required: false, type: 'text', description: 'Descripción del grupo', example: 'Grupo de trabajo zona norte' },
+      { key: 'zone', label: 'Zona Geográfica', required: false, type: 'string', description: 'Zona de cobertura', example: 'Norte' },
+      { key: 'meta', label: 'Meta de Votantes', required: false, type: 'number', description: 'Objetivo de votantes', example: '500' },
+      { key: 'candidateName', label: 'Nombre del Candidato', required: false, type: 'string', description: 'Candidato que apoya', example: 'Carlos Alberto Rodríguez' }
+    ]
+  };
 
-    return fieldConfigurations[entityType] || [];
-  }
+  return fieldConfigurations[entityType] || [];
+}
 
   // ===========================================
   // SUGERENCIAS AUTOMÁTICAS
   // ===========================================
 
   suggestFieldMappings(headers: string[], entityType: string): Record<string, string> {
-    const fields = this.getFieldsForEntityType(entityType);
-    const suggestions: Record<string, string> = {};
+  const fields = this.getFieldsForEntityType(entityType);
+  const suggestions: Record<string, string> = {};
 
-    const mappingRules: Record<string, string[]> = {
-      cedula: ['cedula', 'documento', 'identificacion', 'id', 'cc', 'dni'],
-      firstName: ['nombre', 'primer_nombre', 'first_name', 'nombres', 'name'],
-      lastName: ['apellido', 'apellidos', 'last_name', 'surname'],
-      phone: ['telefono', 'celular', 'phone', 'movil', 'tel'],
-      email: ['email', 'correo', 'mail', 'correo_electronico'],
-      address: ['direccion', 'address', 'domicilio'],
-      neighborhood: ['barrio', 'neighborhood', 'sector'],
-      municipality: ['municipio', 'municipality', 'ciudad'],
-      votingPlace: ['mesa', 'puesto_votacion', 'voting_place'],
-      birthDate: ['fecha_nacimiento', 'birth_date', 'nacimiento'],
-      gender: ['genero', 'sexo', 'gender'],
-      name: ['nombre_completo', 'full_name', 'nombre'],
-      meta: ['meta', 'objetivo', 'target'],
-      description: ['descripcion', 'description', 'desc'],
-      position: ['cargo', 'position', 'puesto'],
-      party: ['partido', 'party', 'partido_politico'],
-      zone: ['zona', 'zone', 'area'],
-      groupName: ['grupo', 'group', 'nombre_grupo'],
-      candidateName: ['candidato', 'candidate', 'nombre_candidato'],
-      leaderCedula: ['lider', 'leader', 'cedula_lider'],
-      commitment: ['compromiso', 'commitment', 'nivel'],
-      notes: ['notas', 'notes', 'observaciones']
-    };
+  // ✅ REGLAS DE MAPEO MEJORADAS para tu formato específico
+  const mappingRules: Record<string, string[]> = {
+    cedula: [
+      'cedula', 'documento', 'identificacion', 'id', 'cc', 'dni',
+      'numero_documento', 'num_doc', 'documento_identidad'
+    ],
+    firstName: [
+      'nombres', 'nombre', 'first_name', 'primer_nombre', 'name',
+      'nombres_completos', 'nombre_completo'
+    ],
+    lastName: [
+      'apellidos', 'apellido', 'last_name', 'surname', 'segundo_nombre',
+      'apellidos_completos', 'apellido_completo'
+    ],
+    phone: [
+      'celular', 'telefono', 'phone', 'movil', 'tel', 'numero',
+      'numero_celular', 'telefono_celular', 'movil_numero'
+    ],
+    email: [
+      'email', 'correo', 'mail', 'correo_electronico',
+      'e_mail', 'correo_email'
+    ],
+    address: [
+      'direccion', 'address', 'domicilio', 'residencia',
+      'direccion_residencia', 'dir'
+    ],
+    neighborhood: [
+      'barrio', 'neighborhood', 'sector', 'zona',
+      'barrio_residencia', 'localidad'
+    ],
+    municipality: [
+      'municipio', 'municipality', 'ciudad', 'localidad',
+      'mpio', 'municipio_residencia'
+    ],
+    // ✅ NUEVO - Reglas para fecha de expedición
+    expeditionDate: [
+      'fecha_expedicion', 'fechaexpedicion', 'fecha_de_expedicion',
+      'expedicion', 'fecha_exp', 'exp', 'fecha_expedicion_cedula',
+      'fecha de expedicion', 'fecha expedicion'
+    ],
+    votingPlace: ['mesa', 'puesto_votacion', 'voting_place', 'mesa_votacion'],
+    birthDate: ['fecha_nacimiento', 'birth_date', 'nacimiento', 'fecha_nac'],
+    gender: ['genero', 'sexo', 'gender'],
+    name: ['nombre_completo', 'full_name', 'nombre'],
+    meta: ['meta', 'objetivo', 'target'],
+    description: ['descripcion', 'description', 'desc'],
+    position: ['cargo', 'position', 'puesto'],
+    party: ['partido', 'party', 'partido_politico'],
+    zone: ['zona', 'zone', 'area'],
+    groupName: ['grupo', 'group', 'nombre_grupo'],
+    candidateName: ['candidato', 'candidate', 'nombre_candidato'],
+    leaderCedula: ['lider', 'leader', 'cedula_lider'],
+    commitment: ['compromiso', 'commitment', 'nivel'],
+    notes: ['notas', 'notes', 'observaciones']
+  };
 
     fields.forEach(field => {
       const rules = mappingRules[field.key];
@@ -471,95 +512,162 @@ class ImportService {
   // ===========================================
 
   validateImportData(
-    data: Record<string, any>[], 
-    fieldMappings: Record<string, string>, 
-    entityType: string
-  ): ValidationResult {
-    const fields = this.getFieldsForEntityType(entityType);
-    const requiredFields = fields.filter(f => f.required);
-    const errors: ImportError[] = [];
-    const warnings: string[] = [];
-    const seenValues = new Set<string>();
-    let duplicates = 0;
+  data: Record<string, any>[], 
+  fieldMappings: Record<string, string>, 
+  entityType: string
+): ValidationResult {
+  const fields = this.getFieldsForEntityType(entityType);
+  const requiredFields = fields.filter(f => f.required);
+  const errors: ImportError[] = [];
+  const warnings: string[] = [];
+  const seenValues = new Set<string>();
+  let duplicates = 0;
 
-    data.forEach((row, index) => {
-      const rowNumber = index + 1;
+  data.forEach((row, index) => {
+    const rowNumber = index + 1;
 
-      // Validar campos requeridos
-      requiredFields.forEach(field => {
-        const csvColumn = Object.keys(fieldMappings).find(
-          key => fieldMappings[key] === field.key
-        );
-        
-        if (csvColumn) {
-          const value = row[csvColumn];
-          if (!value || String(value).trim() === '') {
-            errors.push({
-              row: rowNumber,
-              field: field.key,
-              value: value,
-              error: `${field.label} es requerido`,
-              severity: 'error'
-            });
-          }
-        }
-      });
-
-      // Validar duplicados por cédula
-      const cedulaColumn = Object.keys(fieldMappings).find(
-        key => fieldMappings[key] === 'cedula'
+    // Validar campos requeridos
+    requiredFields.forEach(field => {
+      const csvColumn = Object.keys(fieldMappings).find(
+        key => fieldMappings[key] === field.key
       );
       
-      if (cedulaColumn && row[cedulaColumn]) {
-        const cedula = String(row[cedulaColumn]).trim();
-        if (seenValues.has(cedula)) {
-          duplicates++;
+      if (csvColumn) {
+        const value = row[csvColumn];
+        if (!value || String(value).trim() === '') {
           errors.push({
             row: rowNumber,
-            field: 'cedula',
-            value: cedula,
-            error: 'Cédula duplicada en el archivo',
-            severity: 'warning'
-          });
-        } else {
-          seenValues.add(cedula);
-        }
-      }
-
-      // Validar formato de email
-      const emailColumn = Object.keys(fieldMappings).find(
-        key => fieldMappings[key] === 'email'
-      );
-      
-      if (emailColumn && row[emailColumn]) {
-        const email = String(row[emailColumn]).trim();
-        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          errors.push({
-            row: rowNumber,
-            field: 'email',
-            value: email,
-            error: 'Formato de email inválido',
-            severity: 'warning'
+            field: field.key,
+            value: value,
+            error: `${field.label} es requerido`,
+            severity: 'error'
           });
         }
       }
     });
 
-    const criticalErrors = errors.filter(e => e.severity === 'error');
-    const validRows = data.length - criticalErrors.length;
-
-    return {
-      isValid: criticalErrors.length === 0,
-      errors,
-      warnings,
-      stats: {
-        totalRows: data.length,
-        validRows,
-        invalidRows: criticalErrors.length,
-        duplicates
+    // Validar duplicados por cédula
+    const cedulaColumn = Object.keys(fieldMappings).find(
+      key => fieldMappings[key] === 'cedula'
+    );
+    
+    if (cedulaColumn && row[cedulaColumn]) {
+      const cedula = String(row[cedulaColumn]).trim();
+      
+      // Validar formato de cédula (solo números)
+      if (!/^\d+$/.test(cedula)) {
+        errors.push({
+          row: rowNumber,
+          field: 'cedula',
+          value: cedula,
+          error: 'Cédula debe contener solo números',
+          severity: 'error'
+        });
       }
-    };
-  }
+      
+      // Validar duplicados
+      if (seenValues.has(cedula)) {
+        duplicates++;
+        errors.push({
+          row: rowNumber,
+          field: 'cedula',
+          value: cedula,
+          error: 'Cédula duplicada en el archivo',
+          severity: 'warning'
+        });
+      } else {
+        seenValues.add(cedula);
+      }
+    }
+
+    // Validar formato de email
+    const emailColumn = Object.keys(fieldMappings).find(
+      key => fieldMappings[key] === 'email'
+    );
+    
+    if (emailColumn && row[emailColumn]) {
+      const email = String(row[emailColumn]).trim();
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errors.push({
+          row: rowNumber,
+          field: 'email',
+          value: email,
+          error: 'Formato de email inválido',
+          severity: 'warning'
+        });
+      }
+    }
+
+    // ✅ NUEVO - Validar formato de celular
+    const phoneColumn = Object.keys(fieldMappings).find(
+      key => fieldMappings[key] === 'phone'
+    );
+    
+    if (phoneColumn && row[phoneColumn]) {
+      const phone = String(row[phoneColumn]).trim();
+      if (phone && !/^[0-9+\-\s()]{7,15}$/.test(phone)) {
+        errors.push({
+          row: rowNumber,
+          field: 'phone',
+          value: phone,
+          error: 'Formato de celular inválido',
+          severity: 'warning'
+        });
+      }
+    }
+
+    // ✅ NUEVO - Validar formato de fecha de expedición
+    const expeditionDateColumn = Object.keys(fieldMappings).find(
+      key => fieldMappings[key] === 'expeditionDate'
+    );
+    
+    if (expeditionDateColumn && row[expeditionDateColumn]) {
+      const fecha = String(row[expeditionDateColumn]).trim();
+      if (fecha && !this.isValidDate(fecha)) {
+        errors.push({
+          row: rowNumber,
+          field: 'expeditionDate',
+          value: fecha,
+          error: 'Formato de fecha inválido (use DD/MM/YYYY)',
+          severity: 'warning'
+        });
+      }
+    }
+
+    // ✅ NUEVO - Validar formato de fecha de nacimiento
+    const birthDateColumn = Object.keys(fieldMappings).find(
+      key => fieldMappings[key] === 'birthDate'
+    );
+    
+    if (birthDateColumn && row[birthDateColumn]) {
+      const fecha = String(row[birthDateColumn]).trim();
+      if (fecha && !this.isValidDate(fecha)) {
+        errors.push({
+          row: rowNumber,
+          field: 'birthDate',
+          value: fecha,
+          error: 'Formato de fecha inválido (use DD/MM/YYYY)',
+          severity: 'warning'
+        });
+      }
+    }
+  });
+
+  const criticalErrors = errors.filter(e => e.severity === 'error');
+  const validRows = data.length - criticalErrors.length;
+
+  return {
+    isValid: criticalErrors.length === 0,
+    errors,
+    warnings,
+    stats: {
+      totalRows: data.length,
+      validRows,
+      invalidRows: criticalErrors.length,
+      duplicates
+    }
+  };
+}
 
   // ===========================================
   // ESTADÍSTICAS Y HISTORIAL
@@ -822,69 +930,94 @@ class ImportService {
   }
 
   generateTemplate(entityType: string): TemplateData {
-    const fields = this.getFieldsForEntityType(entityType);
-    const headers = fields.map(field => field.label.replace(' *', ''));
-    
-    const sampleData: Record<string, any>[] = [];
-    
-    if (entityType === 'voters') {
-      sampleData.push(
-        {
-          'Cédula': '12345678',
-          'Primer Nombre': 'Juan',
-          'Apellido': 'Pérez García',
-          'Teléfono': '3001234567',
-          'Email': 'juan.perez@email.com',
-          'Dirección': 'Calle 123 #45-67',
-          'Barrio': 'El Prado',
-          'Municipio': 'Barranquilla'
-        },
-        {
-          'Cédula': '87654321',
-          'Primer Nombre': 'María',
-          'Apellido': 'González López',
-          'Teléfono': '3009876543',
-          'Email': 'maria.gonzalez@email.com',
-          'Dirección': 'Carrera 50 #80-25',
-          'Barrio': 'La Concepción',
-          'Municipio': 'Barranquilla'
-        }
-      );
-    } else if (entityType === 'leaders') {
-      sampleData.push(
-        {
-          'Cédula': '11223344',
-          'Primer Nombre': 'Carlos',
-          'Apellido': 'Rodríguez',
-          'Teléfono': '3001122334',
-          'Email': 'carlos.rodriguez@email.com',
-          'Meta de Votantes': '50',
-          'Nombre del Grupo': 'Grupo Norte'
-        }
-      );
-    } else if (entityType === 'candidates') {
-      sampleData.push(
-        {
-          'Nombre Completo': 'Ana Patricia Mendoza',
-          'Email': 'ana.mendoza@campaña.com',
-          'Teléfono': '3151234567',
-          'Cargo': 'Alcaldesa',
-          'Partido Político': 'Partido Progresista'
-        }
-      );
-    } else if (entityType === 'groups') {
-      sampleData.push(
-        {
-          'Nombre del Grupo': 'Coordinación Norte',
-          'Descripción': 'Grupo de trabajo zona norte',
-          'Zona Geográfica': 'Norte',
-          'Meta de Votantes': '500'
-        }
-      );
-    }
-
-    return { headers, sampleData };
+  const fields = this.getFieldsForEntityType(entityType);
+  const headers = fields.map(field => field.label.replace(' *', ''));
+  
+  const sampleData: Record<string, any>[] = [];
+  
+  if (entityType === 'voters') {
+    sampleData.push(
+      {
+        'Cédula': '12345678',
+        'Nombres': 'Juan Carlos',
+        'Apellidos': 'Pérez García',
+        'Celular': '3001234567',
+        'Email': 'juan.perez@email.com',
+        'Dirección': 'Calle 123 #45-67',
+        'Barrio': 'El Prado',
+        'Municipio': 'Barranquilla',
+        'Fecha de Expedición': '15/05/2010'
+      },
+      {
+        'Cédula': '87654321',
+        'Nombres': 'María Fernanda',
+        'Apellidos': 'González López',
+        'Celular': '3009876543',
+        'Email': 'maria.gonzalez@email.com',
+        'Dirección': 'Carrera 50 #80-25',
+        'Barrio': 'La Concepción',
+        'Municipio': 'Barranquilla',
+        'Fecha de Expedición': '20/03/2008'
+      },
+      {
+        'Cédula': '11223344',
+        'Nombres': 'Carlos Alberto',
+        'Apellidos': 'Rodríguez Martínez',
+        'Celular': '3151122334',
+        'Email': 'carlos.rodriguez@email.com',
+        'Dirección': 'Avenida 15 #30-45',
+        'Barrio': 'Centro',
+        'Municipio': 'Barranquilla',
+        'Fecha de Expedición': '10/12/2015'
+      }
+    );
+  } else if (entityType === 'leaders') {
+    sampleData.push(
+      {
+        'Cédula': '11223344',
+        'Primer Nombre': 'Carlos',
+        'Apellido': 'Rodríguez',
+        'Teléfono': '3001122334',
+        'Email': 'carlos.rodriguez@email.com',
+        'Meta de Votantes': '50',
+        'Nombre del Grupo': 'Grupo Norte'
+      }
+    );
+  } else if (entityType === 'candidates') {
+    sampleData.push(
+      {
+        'Nombre Completo': 'Ana Patricia Mendoza',
+        'Email': 'ana.mendoza@campaña.com',
+        'Teléfono': '3151234567',
+        'Cargo': 'Alcaldesa',
+        'Partido Político': 'Partido Progresista'
+      }
+    );
+  } else if (entityType === 'groups') {
+    sampleData.push(
+      {
+        'Nombre del Grupo': 'Coordinación Norte',
+        'Descripción': 'Grupo de trabajo zona norte',
+        'Zona Geográfica': 'Norte',
+        'Meta de Votantes': '500'
+      }
+    );
   }
+
+  return { headers, sampleData };
+}
+
+// ✅ NUEVA función auxiliar para validar fechas
+private isValidDate(dateString: string): boolean {
+  // Acepta formatos: DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD
+  const patterns = [
+    /^\d{2}\/\d{2}\/\d{4}$/,  // DD/MM/YYYY
+    /^\d{2}-\d{2}-\d{4}$/,   // DD-MM-YYYY
+    /^\d{4}-\d{2}-\d{2}$/    // YYYY-MM-DD
+  ];
+  
+  return patterns.some(pattern => pattern.test(dateString));
+}
 
   exportImportResults(result: ImportResult, format: 'csv' | 'xlsx' = 'csv'): void {
     const data = result.errors.map(error => ({
