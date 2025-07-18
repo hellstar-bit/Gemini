@@ -1,5 +1,5 @@
-// frontend/src/components/planillados/PlanilladosList.tsx
-import React, { useState, useEffect } from 'react';
+// frontend/src/components/planillados/PlanilladosList.tsx - INTEGRADO CON API REAL
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   CheckBadgeIcon,
   ClockIcon,
@@ -12,22 +12,26 @@ import {
   ChevronRightIcon,
   Squares2X2Icon,
   TableCellsIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  ExclamationCircleIcon
 } from '@heroicons/react/24/outline';
 import type { PlanilladoFiltersDto, Planillado } from '../../pages/campaign/PlanilladosPage';
+import planilladosService from '../../services/planilladosService';
 
 interface PlanilladosListProps {
   filters: PlanilladoFiltersDto;
   selectedIds: number[];
   onSelectionChange: (ids: number[]) => void;
   onEdit: (planillado: Planillado) => void;
+  onDataChange?: () => void; // Callback para notificar cambios de datos
 }
 
 export const PlanilladosList: React.FC<PlanilladosListProps> = ({
   filters,
   selectedIds,
   onSelectionChange,
-  onEdit
+  onEdit,
+  onDataChange
 }) => {
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [currentPage, setCurrentPage] = useState(1);
@@ -35,97 +39,84 @@ export const PlanilladosList: React.FC<PlanilladosListProps> = ({
   const [planillados, setPlanillados] = useState<Planillado[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data - en producción vendría del API
-  const mockPlanillados: Planillado[] = [
-    {
-      id: 1,
-      cedula: '12345678',
-      nombres: 'Juan Carlos',
-      apellidos: 'Pérez García',
-      celular: '3001234567',
-      direccion: 'Calle 123 #45-67',
-      barrioVive: 'El Prado',
-      fechaExpedicion: new Date('2010-05-15'),
-      departamentoVotacion: 'Atlántico',
-      municipioVotacion: 'Barranquilla',
-      direccionVotacion: 'Colegio San José',
-      zonaPuesto: 'Zona 1',
-      mesa: '001',
-      estado: 'verificado',
-      esEdil: false,
-      actualizado: true,
-      liderId: 1,
-      grupoId: 1,
-      fechaNacimiento: new Date('1985-03-20'),
-      genero: 'M',
-      notas: 'Contacto verificado',
-      fechaCreacion: new Date('2024-01-15'),
-      fechaActualizacion: new Date('2024-01-20')
-    },
-    {
-      id: 2,
-      cedula: '87654321',
-      nombres: 'María Fernanda',
-      apellidos: 'González López',
-      celular: '3009876543',
-      direccion: 'Carrera 50 #80-25',
-      barrioVive: 'Riomar',
-      fechaExpedicion: new Date('2008-03-20'),
-      departamentoVotacion: 'Atlántico',
-      municipioVotacion: 'Barranquilla',
-      direccionVotacion: 'Escuela Central',
-      zonaPuesto: 'Zona 2',
-      mesa: '045',
-      estado: 'pendiente',
-      esEdil: true,
-      actualizado: true,
-      liderId: 2,
-      grupoId: 1,
-      fechaNacimiento: new Date('1990-07-15'),
-      genero: 'F',
-      notas: 'Requiere verificación telefónica',
-      fechaCreacion: new Date('2024-01-16'),
-      fechaActualizacion: new Date('2024-01-21')
-    }
-    // ... más datos mock
-  ];
-
-  useEffect(() => {
+  // ✅ Cargar planillados desde API
+  const loadPlanillados = useCallback(async () => {
     setLoading(true);
-    // Simular carga de datos
-    setTimeout(() => {
-      setPlanillados(mockPlanillados);
-      setTotal(mockPlanillados.length);
+    setError(null);
+
+    try {
+      const response = await planilladosService.getAll(filters, currentPage, itemsPerPage);
+      setPlanillados(response.data);
+      setTotal(response.meta.total);
+      
+      // Limpiar selecciones que ya no existen
+      const existingIds = response.data.map(p => p.id);
+      const validSelectedIds = selectedIds.filter(id => existingIds.includes(id));
+      if (validSelectedIds.length !== selectedIds.length) {
+        onSelectionChange(validSelectedIds);
+      }
+    } catch (error: any) {
+      console.error('Error loading planillados:', error);
+      setError(error.message || 'Error al cargar planillados');
+      setPlanillados([]);
+      setTotal(0);
+    } finally {
       setLoading(false);
-    }, 500);
-  }, [filters, currentPage, itemsPerPage]);
+    }
+  }, [filters, currentPage, itemsPerPage, selectedIds, onSelectionChange]);
 
-  const handleSelectAll = () => {
-    if (selectedIds.length === planillados.length) {
-      onSelectionChange([]);
+  // ✅ Efectos
+  useEffect(() => {
+    loadPlanillados();
+  }, [loadPlanillados]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
+
+  // ✅ Handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const newSelectedIds = [...selectedIds, ...planillados.map(p => p.id)];
+      onSelectionChange([...new Set(newSelectedIds)]);
     } else {
-      onSelectionChange(planillados.map(p => p.id));
+      onSelectionChange(selectedIds.filter(id => !planillados.map(p => p.id).includes(id)));
     }
   };
 
-  const handleSelectOne = (id: number) => {
-    if (selectedIds.includes(id)) {
-      onSelectionChange(selectedIds.filter(selectedId => selectedId !== id));
-    } else {
+  const handleSelectOne = (id: number, checked: boolean) => {
+    if (checked) {
       onSelectionChange([...selectedIds, id]);
+    } else {
+      onSelectionChange(selectedIds.filter(selectedId => selectedId !== id));
     }
   };
 
-  const formatDate = (date: Date | undefined) => {
-    if (!date) return '-';
-    return new Intl.DateTimeFormat('es-CO', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    }).format(date);
+  const handleEdit = (planillado: Planillado) => {
+    onEdit(planillado);
   };
 
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page
+  };
+
+  // ✅ Refresh data after external changes
+  const refreshData = useCallback(() => {
+    loadPlanillados();
+    if (onDataChange) {
+      onDataChange();
+    }
+  }, [loadPlanillados, onDataChange]);
+
+  // ✅ Utilities
   const getEstadoBadge = (estado: 'verificado' | 'pendiente') => {
     if (estado === 'verificado') {
       return (
@@ -143,23 +134,106 @@ export const PlanilladosList: React.FC<PlanilladosListProps> = ({
     );
   };
 
-  const getTipoBadge = (esEdil: boolean) => {
-    if (esEdil) {
-      return (
-        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-          <UserIcon className="w-3 h-3 mr-1" />
-          Edil
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-        <UserIcon className="w-3 h-3 mr-1" />
-        Planillado
-      </span>
-    );
-  };
+  const currentPagePlanilladosIds = planillados.map(p => p.id);
+  const allCurrentPageSelected = currentPagePlanilladosIds.length > 0 && currentPagePlanilladosIds.every(id => selectedIds.includes(id));
+  const someCurrentPageSelected = currentPagePlanilladosIds.some(id => selectedIds.includes(id));
 
+  // ✅ Vista de tarjetas
+  const renderCardsView = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {planillados.map((planillado) => (
+        <div
+          key={planillado.id}
+          className={`bg-white rounded-lg border-2 transition-all duration-200 hover:shadow-md ${
+            selectedIds.includes(planillado.id) 
+              ? 'border-primary-300 bg-primary-50' 
+              : 'border-gray-200'
+          }`}
+        >
+          <div className="p-4">
+            {/* Header de la tarjeta */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(planillado.id)}
+                  onChange={(e) => handleSelectOne(planillado.id, e.target.checked)}
+                  className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                />
+                <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                  <UserIcon className="w-4 h-4 text-primary-600" />
+                </div>
+              </div>
+              <div className="flex items-center space-x-1">
+                {planillado.esEdil && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                    Edil
+                  </span>
+                )}
+                {getEstadoBadge(planillado.estado)}
+              </div>
+            </div>
+
+            {/* Información principal */}
+            <div className="mb-3">
+              <h3 className="font-medium text-gray-900 truncate">
+                {planillado.nombres} {planillado.apellidos}
+              </h3>
+              <p className="text-sm text-gray-500">CC: {planillado.cedula}</p>
+            </div>
+
+            {/* Detalles */}
+            <div className="space-y-2 text-sm">
+              {planillado.celular && (
+                <div className="flex items-center text-gray-600">
+                  <PhoneIcon className="w-4 h-4 mr-2" />
+                  {planillado.celular}
+                </div>
+              )}
+              <div className="flex items-center text-gray-600">
+                <MapPinIcon className="w-4 h-4 mr-2" />
+                {planillado.barrioVive || 'Sin barrio'}
+              </div>
+              {planillado.zonaPuesto && planillado.mesa && (
+                <div className="text-gray-600">
+                  {planillado.zonaPuesto} - Mesa {planillado.mesa}
+                </div>
+              )}
+            </div>
+
+            {/* Acciones */}
+            <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+              <div className="flex items-center space-x-1 text-xs text-gray-500">
+                {planillado.genero && (
+                  <span>{planillado.genero === 'M' ? '♂️' : planillado.genero === 'F' ? '♀️' : '⚧️'}</span>
+                )}
+                {!planillado.actualizado && (
+                  <span className="text-red-600">●</span>
+                )}
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => handleEdit(planillado)}
+                  className="text-primary-600 hover:text-primary-900 transition-colors"
+                  title="Editar"
+                >
+                  <PencilSquareIcon className="w-4 h-4" />
+                </button>
+                <button
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Ver detalles"
+                >
+                  <EyeIcon className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  // ✅ Vista de tabla
   const renderTableView = () => (
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200">
@@ -168,13 +242,16 @@ export const PlanilladosList: React.FC<PlanilladosListProps> = ({
             <th className="px-6 py-3 text-left">
               <input
                 type="checkbox"
-                checked={selectedIds.length === planillados.length && planillados.length > 0}
-                onChange={handleSelectAll}
+                checked={allCurrentPageSelected}
+                ref={(input) => {
+                  if (input) input.indeterminate = someCurrentPageSelected && !allCurrentPageSelected;
+                }}
+                onChange={(e) => handleSelectAll(e.target.checked)}
                 className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
               />
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Información Personal
+              Planillado
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Contacto
@@ -195,25 +272,39 @@ export const PlanilladosList: React.FC<PlanilladosListProps> = ({
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {planillados.map((planillado) => (
-            <tr key={planillado.id} className="hover:bg-gray-50">
+            <tr
+              key={planillado.id}
+              className={`hover:bg-gray-50 transition-colors ${
+                selectedIds.includes(planillado.id) ? 'bg-primary-50' : ''
+              }`}
+            >
               <td className="px-6 py-4 whitespace-nowrap">
                 <input
                   type="checkbox"
                   checked={selectedIds.includes(planillado.id)}
-                  onChange={() => handleSelectOne(planillado.id)}
+                  onChange={(e) => handleSelectOne(planillado.id, e.target.checked)}
                   className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                 />
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <div>
-                  <div className="text-sm font-medium text-gray-900">
-                    {planillado.nombres} {planillado.apellidos}
+                <div className="flex items-center">
+                  <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center mr-3">
+                    <UserIcon className="w-5 h-5 text-primary-600" />
                   </div>
-                  <div className="text-sm text-gray-500">CC: {planillado.cedula}</div>
-                  <div className="flex items-center space-x-2 mt-1">
-                    {getTipoBadge(planillado.esEdil)}
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">
+                      {planillado.nombres} {planillado.apellidos}
+                    </div>
+                    <div className="text-sm text-gray-500 flex items-center">
+                      CC: {planillado.cedula}
+                      {planillado.esEdil && (
+                        <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          Edil
+                        </span>
+                      )}
+                    </div>
                     {planillado.genero && (
-                      <span className="text-xs text-gray-500">
+                      <span className="text-lg">
                         {planillado.genero === 'M' ? '♂️' : planillado.genero === 'F' ? '♀️' : '⚧️'}
                       </span>
                     )}
@@ -272,7 +363,7 @@ export const PlanilladosList: React.FC<PlanilladosListProps> = ({
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <div className="flex items-center space-x-2">
                   <button
-                    onClick={() => onEdit(planillado)}
+                    onClick={() => handleEdit(planillado)}
                     className="text-primary-600 hover:text-primary-900 transition-colors"
                     title="Editar"
                   >
@@ -293,82 +384,6 @@ export const PlanilladosList: React.FC<PlanilladosListProps> = ({
     </div>
   );
 
-  const renderCardsView = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {planillados.map((planillado) => (
-        <div
-          key={planillado.id}
-          className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow"
-        >
-          {/* Header de la tarjeta */}
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {planillado.nombres} {planillado.apellidos}
-              </h3>
-              <p className="text-sm text-gray-500">CC: {planillado.cedula}</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={selectedIds.includes(planillado.id)}
-              onChange={() => handleSelectOne(planillado.id)}
-              className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-            />
-          </div>
-
-          {/* Badges */}
-          <div className="flex items-center space-x-2 mb-3">
-            {getEstadoBadge(planillado.estado)}
-            {getTipoBadge(planillado.esEdil)}
-          </div>
-
-          {/* Información de contacto */}
-          {planillado.celular && (
-            <div className="flex items-center text-sm text-gray-600 mb-2">
-              <PhoneIcon className="w-4 h-4 mr-2 text-gray-400" />
-              {planillado.celular}
-            </div>
-          )}
-
-          {/* Ubicación */}
-          <div className="flex items-center text-sm text-gray-600 mb-2">
-            <MapPinIcon className="w-4 h-4 mr-2 text-gray-400" />
-            {planillado.barrioVive || 'Sin barrio'}
-          </div>
-
-          {/* Información de votación */}
-          {planillado.zonaPuesto && planillado.mesa && (
-            <div className="text-sm text-gray-600 mb-3">
-              <strong>Votación:</strong> {planillado.zonaPuesto} - Mesa {planillado.mesa}
-            </div>
-          )}
-
-          {/* Acciones */}
-          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-            <div className="text-xs text-gray-500">
-              {formatDate(planillado.fechaActualizacion)}
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => onEdit(planillado)}
-                className="p-1 text-primary-600 hover:text-primary-900 transition-colors"
-                title="Editar"
-              >
-                <PencilSquareIcon className="w-4 h-4" />
-              </button>
-              <button
-                className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                title="Ver detalles"
-              >
-                <EyeIcon className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
   const totalPages = Math.ceil(total / itemsPerPage);
 
   return (
@@ -385,14 +400,31 @@ export const PlanilladosList: React.FC<PlanilladosListProps> = ({
                 {selectedIds.length} seleccionados
               </p>
             )}
+            {error && (
+              <div className="flex items-center text-sm text-red-600 mt-1">
+                <ExclamationCircleIcon className="w-4 h-4 mr-1" />
+                {error}
+              </div>
+            )}
           </div>
           
           <div className="flex items-center space-x-4">
+            {/* Refresh button */}
+            <button
+              onClick={refreshData}
+              disabled={loading}
+              className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              title="Actualizar"
+            >
+              ↻ Actualizar
+            </button>
+
             {/* Items per page */}
             <select
               value={itemsPerPage}
-              onChange={(e) => setItemsPerPage(parseInt(e.target.value))}
+              onChange={(e) => handleItemsPerPageChange(parseInt(e.target.value))}
               className="px-3 py-1 border border-gray-300 rounded-lg text-sm"
+              disabled={loading}
             >
               <option value={10}>10 por página</option>
               <option value={20}>20 por página</option>
@@ -439,65 +471,83 @@ export const PlanilladosList: React.FC<PlanilladosListProps> = ({
         ) : planillados.length === 0 ? (
           <div className="text-center py-12">
             <UserGroupIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No se encontraron planillados
-            </h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No hay planillados</h3>
             <p className="text-gray-600">
-              Intenta ajustar los filtros o agrega nuevos planillados.
+              {Object.keys(filters).length > 0 
+                ? 'No se encontraron planillados con los filtros aplicados.' 
+                : 'Aún no hay planillados registrados en el sistema.'
+              }
             </p>
+            {error && (
+              <button
+                onClick={refreshData}
+                className="mt-4 inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+              >
+                Reintentar
+              </button>
+            )}
           </div>
         ) : (
-          viewMode === 'table' ? renderTableView() : renderCardsView()
+          <>
+            {viewMode === 'table' ? renderTableView() : renderCardsView()}
+          </>
         )}
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="px-6 py-4 border-t border-gray-200">
+      {total > 0 && !loading && (
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-700">
-              Mostrando {((currentPage - 1) * itemsPerPage) + 1} a{' '}
-              {Math.min(currentPage * itemsPerPage, total)} de{' '}
-              {total.toLocaleString()} resultados
+              Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, total)} de {total} resultados
             </div>
             
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => setCurrentPage(currentPage - 1)}
+                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
-                className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <ChevronLeftIcon className="w-4 h-4" />
+                <ChevronLeftIcon className="w-4 h-4 mr-1" />
+                Anterior
               </button>
               
               <div className="flex items-center space-x-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(page => 
-                    page === 1 || 
-                    page === totalPages || 
-                    Math.abs(page - currentPage) <= 2
-                  )
-                  .map(page => (
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNumber;
+                  if (totalPages <= 5) {
+                    pageNumber = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNumber = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNumber = totalPages - 4 + i;
+                  } else {
+                    pageNumber = currentPage - 2 + i;
+                  }
+                  
+                  return (
                     <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`px-3 py-1 rounded-lg transition-colors ${
-                        page === currentPage
+                      key={pageNumber}
+                      onClick={() => handlePageChange(pageNumber)}
+                      className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        pageNumber === currentPage
                           ? 'bg-primary-600 text-white'
-                          : 'text-gray-700 hover:bg-gray-100'
+                          : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
                       }`}
                     >
-                      {page}
+                      {pageNumber}
                     </button>
-                  ))}
+                  );
+                })}
               </div>
               
               <button
-                onClick={() => setCurrentPage(currentPage + 1)}
+                onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
-                className="p-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <ChevronRightIcon className="w-4 h-4" />
+                Siguiente
+                <ChevronRightIcon className="w-4 h-4 ml-1" />
               </button>
             </div>
           </div>
