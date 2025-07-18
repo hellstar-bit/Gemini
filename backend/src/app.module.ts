@@ -1,70 +1,69 @@
-// backend/src/app.module.ts - Configuración MySQL sin conflictos
+// backend/src/app.module.ts - Actualizado con PlanilladosModule
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-
-// Modules
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { VotersModule } from './voters/voters.module';
+import { LeadersModule } from './leaders/leaders.module';
+import { CandidatesModule } from './candidates/candidates.module';
+import { GroupsModule } from './groups/groups.module';
 import { ImportModule } from './import/import.module';
+import { PlanilladosModule } from './planillados/planillados.module'; // ✅ NUEVO
 
-// Entities
+// Entidades
 import { User } from './users/entities/user.entity';
+import { Voter } from './voters/entities/voter.entity';
+import { Leader } from './leaders/entities/leader.entity';
 import { Candidate } from './candidates/entities/candidate.entity';
 import { Group } from './groups/entities/group.entity';
-import { Leader } from './leaders/entities/leader.entity';
-import { Voter } from './voters/entities/voter.entity';
-import { Location } from './locations/entities/location.entity';
+import { Planillado } from './planillados/entities/planillado.entity'; // ✅ NUEVO
 
 @Module({
   imports: [
+    // Configuración
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: '.env',
     }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 100,
-    }]),
+
+    // Base de datos
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
         type: 'mysql',
-        host: configService.get('DB_HOST', 'localhost'),
-        port: parseInt(configService.get('DB_PORT', '3306'), 10),
-        username: configService.get('DB_USERNAME', 'root'),
-        password: configService.get('DB_PASSWORD', ''),
-        database: configService.get('DB_NAME', 'gemini'),
-        entities: [User, Candidate, Group, Leader, Voter, Location],
-        synchronize: configService.get('NODE_ENV') === 'development', // ✅ Solo en desarrollo
+        host: configService.get('DB_HOST'),
+        port: +configService.get('DB_PORT'),
+        username: configService.get('DB_USERNAME'),
+        password: configService.get('DB_PASSWORD'),
+        database: configService.get('DB_NAME'),
+        entities: [
+          User, 
+          Voter, 
+          Leader, 
+          Candidate, 
+          Group,
+          Planillado // ✅ NUEVO
+        ],
+        synchronize: configService.get('NODE_ENV') !== 'production', // Solo en desarrollo
         logging: configService.get('NODE_ENV') === 'development',
-        timezone: 'Z',
-        charset: 'utf8mb4',
-        retryAttempts: 3,
-        retryDelay: 3000,
-        autoLoadEntities: true,
-        // ✅ Configuraciones para evitar conflictos de índices
-        dropSchema: configService.get('NODE_ENV') === 'development' && configService.get('DROP_SCHEMA') === 'true',
-        migrationsRun: false, // ✅ Deshabilitar migraciones automáticas
-        cache: false, // ✅ Deshabilitar cache para evitar conflictos
-        extra: {
-          connectionLimit: 10,
-          acquireTimeout: 60000,
-          timeout: 60000,
-        }
       }),
       inject: [ConfigService],
     }),
+
+    // Módulos de la aplicación
     AuthModule,
     UsersModule,
+    VotersModule,
+    LeadersModule,
+    CandidatesModule,
+    GroupsModule,
     ImportModule,
+    PlanilladosModule, // ✅ NUEVO
   ],
-  providers: [
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
-  ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
