@@ -68,6 +68,11 @@ export class PlanilladosController {
     return this.planilladosService.findAll(filterDto, pageNumber, limitNumber);
   }
 
+  @Get('geographic-data')
+  async getGeographicData(@Query() filters: PlanilladoFiltersDto) {
+  return this.planilladosService.getGeographicData(filters);
+}
+
   // ✅ GET /planillados/stats - Estadísticas
   @Get('stats')
   async getStats(@Query() filters: PlanilladoFiltersDto) {

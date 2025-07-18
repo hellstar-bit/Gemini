@@ -1,4 +1,6 @@
 // backend/src/planillados/planillados.service.ts
+import * as fs from 'fs';
+import * as path from 'path';
 import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder, Between, Like, In } from 'typeorm';
@@ -12,6 +14,18 @@ import {
   ValidationResultDto,
   DuplicateCheckDto
 } from './dto/planillado.dto';
+
+// ✅ NUEVO - Interfaz para las estadísticas de un barrio
+interface BarrioStats {
+  total: number;
+  verificados: number;
+  pendientes: number;
+  ediles: number;
+  lideres: number;
+  grupos: number;
+  densidad: 'alta' | 'media' | 'baja' | 'sin-datos';
+  porcentaje: string;
+}
 
 @Injectable()
 export class PlanilladosService {
@@ -124,9 +138,8 @@ export class PlanilladosService {
     const porLiderQuery = this.planilladoRepository
       .createQueryBuilder('p')
       .leftJoin('p.lider', 'l')
-      .select('CONCAT(l.nombres, \' \', l.apellidos) as lider, COUNT(*) as cantidad')
-      .where('p.liderId IS NOT NULL')
-      .groupBy('l.id, l.nombres, l.apellidos')
+      .select('CONCAT(l.firstName, \' \', l.lastName) as lider, COUNT(*) as cantidad')      .where('p.liderId IS NOT NULL')
+      .groupBy('l.id, l.firstName, l.lastName')
       .orderBy('cantidad', 'DESC')
       .limit(10);
 
@@ -140,9 +153,9 @@ export class PlanilladosService {
     const porGrupoQuery = this.planilladoRepository
       .createQueryBuilder('p')
       .leftJoin('p.grupo', 'g')
-      .select('g.nombre as grupo, COUNT(*) as cantidad')
+      .select('g.name as grupo, COUNT(*) as cantidad')
       .where('p.grupoId IS NOT NULL')
-      .groupBy('g.id, g.nombre')
+      .groupBy('g.id, g.name')
       .orderBy('cantidad', 'DESC');
 
     const grupoResult = await porGrupoQuery.getRawMany();
@@ -395,6 +408,145 @@ export class PlanilladosService {
       suggestions,
     };
   }
+
+  async getGeographicData(filters: PlanilladoFiltersDto = {}) {
+  try {
+    // 1. Cargar el GeoJSON base
+    const geoJsonPath = path.join(process.cwd(), 'public', 'data', 'barranquilla-barrios.geojson');
+    console.log('🔍 Buscando archivo en:', geoJsonPath);
+console.log('📁 Directorio actual:', __dirname);
+console.log('✅ Archivo existe:', fs.existsSync(geoJsonPath));
+if (fs.existsSync(geoJsonPath)) {
+  console.log('📏 Tamaño del archivo:', fs.statSync(geoJsonPath).size, 'bytes');
+}
+    const geoJsonData = JSON.parse(fs.readFileSync(geoJsonPath, 'utf8'));
+
+    // 2. Obtener estadísticas por barrio con filtros aplicados
+    const barrioStats = await this.getBarrioStatistics(filters);
+
+    // 3. Combinar GeoJSON con datos de planillados
+    const enrichedFeatures = geoJsonData.features.map(feature => {
+      const nombreBarrio = feature.properties.nombre;
+      const stats = barrioStats[nombreBarrio] || {
+        total: 0,
+        verificados: 0,
+        pendientes: 0,
+        ediles: 0,
+        lideres: 0,
+        grupos: 0,
+        densidad: 'sin-datos',
+        porcentaje: '0.0'
+      };
+
+      return {
+        ...feature,
+        properties: {
+          ...feature.properties,
+          planillados: stats
+        }
+      };
+    });
+
+    // 4. Calcular métricas globales
+    const allTotals = Object.values(barrioStats).map(stats => stats.total);
+    const totalPlanillados = allTotals.reduce((sum, total) => sum + total, 0);
+    const maxPlanillados = allTotals.length > 0 ? Math.max(...allTotals) : 0;
+    const minPlanillados = allTotals.length > 0 ? Math.min(...allTotals.filter(t => t > 0)) : 0;
+
+    return {
+      type: 'FeatureCollection',
+      features: enrichedFeatures,
+      metadata: {
+        totalBarrios: enrichedFeatures.length,
+        totalPlanillados,
+        maxPlanillados,
+        minPlanillados,
+        promedioBarrio: enrichedFeatures.length > 0 ? Math.round(totalPlanillados / enrichedFeatures.length) : 0,
+        filtrosAplicados: filters
+      }
+    };
+  } catch (error) {
+    console.error('Error loading geographic data:', error);
+    throw new Error('Error al cargar datos geográficos');
+  }
+}
+
+private async getBarrioStatistics(filters: PlanilladoFiltersDto): Promise<Record<string, BarrioStats>> {
+  // Construir query base
+  let query = this.planilladoRepository.createQueryBuilder('p')
+    .leftJoin('p.lider', 'l')
+    .leftJoin('p.grupo', 'g');
+
+  // Aplicar filtros si existen
+  if (filters.estado) {
+    query = query.andWhere('p.estado = :estado', { estado: filters.estado });
+  }
+  if (filters.liderId) {
+    query = query.andWhere('p.liderId = :liderId', { liderId: filters.liderId });
+  }
+  if (filters.grupoId) {
+    query = query.andWhere('p.grupoId = :grupoId', { grupoId: filters.grupoId });
+  }
+  if (filters.esEdil !== undefined) {
+    query = query.andWhere('p.esEdil = :esEdil', { esEdil: filters.esEdil });
+  }
+  if (filters.genero) {
+    query = query.andWhere('p.genero = :genero', { genero: filters.genero });
+  }
+  if (filters.fechaDesde) {
+    query = query.andWhere('p.fechaCreacion >= :fechaDesde', { fechaDesde: filters.fechaDesde });
+  }
+  if (filters.fechaHasta) {
+    query = query.andWhere('p.fechaCreacion <= :fechaHasta', { fechaHasta: filters.fechaHasta });
+  }
+
+  // Obtener datos agrupados por barrio
+  const rawResults = await query
+    .select([
+      'p.barrioVive as barrio',
+      'COUNT(*) as total',
+      'SUM(CASE WHEN p.estado = "verificado" THEN 1 ELSE 0 END) as verificados',
+      'SUM(CASE WHEN p.estado = "pendiente" THEN 1 ELSE 0 END) as pendientes',
+      'SUM(CASE WHEN p.esEdil = true THEN 1 ELSE 0 END) as ediles',
+      'COUNT(DISTINCT p.liderId) as lideres',
+      'COUNT(DISTINCT p.grupoId) as grupos'
+    ])
+    .where('p.barrioVive IS NOT NULL')
+    .groupBy('p.barrioVive')
+    .getRawMany();
+
+  // Procesar resultados y calcular densidades
+  const statistics: Record<string, BarrioStats> = {};
+  const totales = rawResults.map(r => parseInt(r.total));
+  const max = Math.max(...totales);
+  const min = Math.min(...totales);
+  const range = max - min;
+
+  rawResults.forEach(result => {
+    const total = parseInt(result.total);
+    let densidad: BarrioStats['densidad'] = 'sin-datos';
+    
+    if (range > 0) {
+      const porcentaje = (total - min) / range;
+      if (porcentaje >= 0.7) densidad = 'alta';
+      else if (porcentaje >= 0.3) densidad = 'media';
+      else densidad = 'baja';
+    }
+
+    statistics[result.barrio] = {
+      total,
+      verificados: parseInt(result.verificados),
+      pendientes: parseInt(result.pendientes),
+      ediles: parseInt(result.ediles),
+      lideres: parseInt(result.lideres),
+      grupos: parseInt(result.grupos),
+      densidad,
+      porcentaje: total > 0 ? ((total / totales.reduce((a, b) => a + b, 0)) * 100).toFixed(1) : '0.0'
+    };
+  });
+
+  return statistics;
+}
 
   // ✅ Verificar duplicados
   async checkDuplicates(cedula: string): Promise<DuplicateCheckDto> {

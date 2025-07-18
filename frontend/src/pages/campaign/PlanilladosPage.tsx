@@ -1,7 +1,7 @@
 // frontend/src/pages/campaign/PlanilladosPage.tsx - INTEGRADO CON API REAL
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  UserGroupIcon, 
+import {
+  UserGroupIcon,
   ChartBarIcon,
   PlusIcon,
   ExclamationCircleIcon
@@ -35,14 +35,14 @@ export const PlanilladosPage: React.FC = () => {
   const loadStats = useCallback(async () => {
     setIsStatsLoading(true);
     setError(null);
-    
+
     try {
       const statsData = await planilladosService.getStats(filters);
       setStats(statsData);
     } catch (error: any) {
       console.error('Error loading stats:', error);
       setError('Error al cargar estadísticas');
-      
+
       // Fallback a datos mock para desarrollo
       const mockStats: PlanilladosStatsDto = {
         total: 0,
@@ -114,9 +114,9 @@ export const PlanilladosPage: React.FC = () => {
 
     try {
       const result = await planilladosService.bulkAction(action, ids);
-      
+
       console.log(`Acción masiva ${action}: ${result.affected} planillados afectados`);
-      
+
       // Recargar datos después de la acción
       await loadStats();
       setSelectedIds([]); // Limpiar selección
@@ -162,45 +162,41 @@ export const PlanilladosPage: React.FC = () => {
               <div className="flex bg-gray-100 rounded-lg p-1">
                 <button
                   onClick={() => setView('list')}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                    view === 'list' 
-                      ? 'bg-white text-gray-900 shadow-sm' 
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${view === 'list'
+                      ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                    }`}
                 >
                   Lista
                 </button>
                 <button
                   onClick={() => setView('charts')}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                    view === 'charts' 
-                      ? 'bg-white text-gray-900 shadow-sm' 
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${view === 'charts'
+                      ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                    }`}
                 >
                   Gráficos
                 </button>
                 <button
                   onClick={() => setView('map')}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                    view === 'map' 
-                      ? 'bg-white text-gray-900 shadow-sm' 
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${view === 'map'
+                      ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                    }`}
                 >
                   Mapa
                 </button>
               </div>
-              
+
               {/* Acciones */}
               <button
                 onClick={handleCreateNew}
                 disabled={isLoading}
-                className={`inline-flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${
-                  isLoading
+                className={`inline-flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${isLoading
                     ? 'bg-gray-400 text-white cursor-not-allowed'
                     : 'bg-primary-600 text-white hover:bg-primary-700'
-                }`}
+                  }`}
               >
                 <PlusIcon className="w-5 h-5 mr-2" />
                 Nuevo Planillado
@@ -229,20 +225,20 @@ export const PlanilladosPage: React.FC = () => {
         {view === 'list' && (
           <div className="space-y-6">
             {/* Filtros */}
-            <PlanilladosFilters 
+            <PlanilladosFilters
               filters={filters}
               onFiltersChange={handleFiltersChange}
             />
-            
+
             {/* Barra de acciones masivas */}
             {selectedIds.length > 0 && (
-              <BulkActionsBar 
+              <BulkActionsBar
                 selectedIds={selectedIds}
                 onAction={handleBulkAction}
                 onClearSelection={() => setSelectedIds([])}
               />
             )}
-            
+
             {/* Lista */}
             <PlanilladosList
               filters={filters}

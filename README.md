@@ -1,6 +1,6 @@
 
 ```
-gemini
+Gemini
 ├─ backend
 │  ├─ .env
 │  ├─ .prettierrc
@@ -88,6 +88,24 @@ gemini
 │  │  ├─ main.d.ts
 │  │  ├─ main.js
 │  │  ├─ main.js.map
+│  │  ├─ planillados
+│  │  │  ├─ dto
+│  │  │  │  ├─ planillado.dto.d.ts
+│  │  │  │  ├─ planillado.dto.js
+│  │  │  │  └─ planillado.dto.js.map
+│  │  │  ├─ entities
+│  │  │  │  ├─ planillado.entity.d.ts
+│  │  │  │  ├─ planillado.entity.js
+│  │  │  │  └─ planillado.entity.js.map
+│  │  │  ├─ planillados.controller.d.ts
+│  │  │  ├─ planillados.controller.js
+│  │  │  ├─ planillados.controller.js.map
+│  │  │  ├─ planillados.module.d.ts
+│  │  │  ├─ planillados.module.js
+│  │  │  ├─ planillados.module.js.map
+│  │  │  ├─ planillados.service.d.ts
+│  │  │  ├─ planillados.service.js
+│  │  │  └─ planillados.service.js.map
 │  │  ├─ tsconfig.build.tsbuildinfo
 │  │  ├─ users
 │  │  │  ├─ entities
@@ -115,6 +133,9 @@ gemini
 │  ├─ nest-cli.json
 │  ├─ package-lock.json
 │  ├─ package.json
+│  ├─ public
+│  │  └─ data
+│  │     └─ barranquilla-barrios.geojson
 │  ├─ README.md
 │  ├─ src
 │  │  ├─ app.controller.spec.ts
@@ -157,6 +178,15 @@ gemini
 │  │  │  │  └─ location.entity.ts
 │  │  │  └─ locations.module.ts
 │  │  ├─ main.ts
+│  │  ├─ planillados
+│  │  │  ├─ data
+│  │  │  ├─ dto
+│  │  │  │  └─ planillado.dto.ts
+│  │  │  ├─ entities
+│  │  │  │  └─ planillado.entity.ts
+│  │  │  ├─ planillados.controller.ts
+│  │  │  ├─ planillados.module.ts
+│  │  │  └─ planillados.service.ts
 │  │  ├─ users
 │  │  │  ├─ entities
 │  │  │  │  └─ user.entity.ts
@@ -174,52 +204,73 @@ gemini
 │  │  └─ jest-e2e.json
 │  ├─ tsconfig.build.json
 │  └─ tsconfig.json
-└─ frontend
-   ├─ eslint.config.js
-   ├─ index.html
-   ├─ package-lock.json
-   ├─ package.json
-   ├─ public
-   │  └─ vite.svg
-   ├─ README.md
-   ├─ src
-   │  ├─ App.css
-   │  ├─ App.tsx
-   │  ├─ assets
-   │  │  └─ react.svg
-   │  ├─ components
-   │  │  ├─ auth
-   │  │  │  ├─ LoginForm.tsx
-   │  │  │  ├─ ProtectedRoute.tsx
-   │  │  │  └─ RegisterForm.tsx
-   │  │  ├─ common
-   │  │  │  └─ NotificationContainer.tsx
-   │  │  └─ layout
-   │  │     ├─ Layout.tsx
-   │  │     └─ Sidebar.tsx
-   │  ├─ index.css
-   │  ├─ main.tsx
-   │  ├─ pages
-   │  │  ├─ AuthPage.tsx
-   │  │  ├─ ComingSoon.tsx
-   │  │  ├─ Dashboard.tsx
-   │  │  └─ operations
-   │  │     └─ ImportPage.tsx
-   │  ├─ services
-   │  │  ├─ authService.ts
-   │  │  └─ importService.ts
-   │  ├─ store
-   │  │  ├─ hooks.ts
-   │  │  ├─ index.ts
-   │  │  └─ slices
-   │  │     ├─ appSlice.ts
-   │  │     └─ authSlice.ts
-   │  ├─ types
-   │  │  └─ index.ts
-   │  └─ vite-env.d.ts
-   ├─ tsconfig.app.json
-   ├─ tsconfig.json
-   ├─ tsconfig.node.json
-   └─ vite.config.ts
+├─ frontend
+│  ├─ eslint.config.js
+│  ├─ index.html
+│  ├─ package-lock.json
+│  ├─ package.json
+│  ├─ public
+│  │  └─ vite.svg
+│  ├─ README.md
+│  ├─ src
+│  │  ├─ App.css
+│  │  ├─ App.tsx
+│  │  ├─ assets
+│  │  │  └─ react.svg
+│  │  ├─ components
+│  │  │  ├─ auth
+│  │  │  │  ├─ LoginForm.tsx
+│  │  │  │  ├─ ProtectedRoute.tsx
+│  │  │  │  └─ RegisterForm.tsx
+│  │  │  ├─ common
+│  │  │  │  └─ NotificationContainer.tsx
+│  │  │  ├─ import
+│  │  │  │  ├─ DownloadTemplateButton.tsx
+│  │  │  │  ├─ SimpleDownloadButton.tsx
+│  │  │  │  └─ TemplateInfoCard.tsx
+│  │  │  ├─ layout
+│  │  │  │  ├─ Layout.tsx
+│  │  │  │  └─ Sidebar.tsx
+│  │  │  └─ planillados
+│  │  │     ├─ BulkActionsBar.tsx
+│  │  │     ├─ PlanilladoModal.tsx
+│  │  │     ├─ PlanilladosCharts.tsx
+│  │  │     ├─ PlanilladosFilters.tsx
+│  │  │     ├─ PlanilladosList.tsx
+│  │  │     ├─ PlanilladosMap.css
+│  │  │     ├─ PlanilladosMap.tsx
+│  │  │     └─ PlanilladosStats.tsx
+│  │  ├─ index.css
+│  │  ├─ main.tsx
+│  │  ├─ pages
+│  │  │  ├─ AuthPage.tsx
+│  │  │  ├─ campaign
+│  │  │  │  ├─ CampaignPage.tsx
+│  │  │  │  └─ PlanilladosPage.tsx
+│  │  │  ├─ ComingSoon.tsx
+│  │  │  ├─ Dashboard.tsx
+│  │  │  └─ operations
+│  │  │     └─ ImportPage.tsx
+│  │  ├─ services
+│  │  │  ├─ authService.ts
+│  │  │  ├─ geographicService.ts
+│  │  │  ├─ importService.ts
+│  │  │  └─ planilladosService.ts
+│  │  ├─ store
+│  │  │  ├─ hooks.ts
+│  │  │  ├─ index.ts
+│  │  │  └─ slices
+│  │  │     ├─ appSlice.ts
+│  │  │     └─ authSlice.ts
+│  │  ├─ types
+│  │  │  └─ index.ts
+│  │  ├─ utils
+│  │  │  └─ templateDownload.ts
+│  │  └─ vite-env.d.ts
+│  ├─ tsconfig.app.json
+│  ├─ tsconfig.json
+│  ├─ tsconfig.node.json
+│  └─ vite.config.ts
+└─ README.md
 
 ```

@@ -1,5 +1,5 @@
-// frontend/src/components/planillados/PlanilladoModal.tsx - INTEGRADO CON API REAL
-import React, { useState, useEffect } from 'react';
+// frontend/src/components/planillados/PlanilladoModal.tsx - MEJORADO CON DROPDOWNS DE BÚSQUEDA
+import React, { useState, useEffect, useRef } from 'react';
 import {
   XMarkIcon,
   UserIcon,
@@ -7,7 +7,9 @@ import {
   CalendarDaysIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  ChevronDownIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import type { Planillado } from '../../pages/campaign/PlanilladosPage';
 import planilladosService from '../../services/planilladosService';
@@ -44,6 +46,150 @@ interface ValidationState {
   suggestions: any;
 }
 
+// Lista completa de barrios de Barranquilla
+const BARRIOS_BARRANQUILLA = [
+  "20 DE JULIO", "7 DE ABRIL", "7 DE AGOSTO", "ALFONSO LOPEZ", "ALTAMIRA", "ALTO PRADO", 
+  "ALTOS DE RIOMAR", "ALTOS DEL LIMON", "AMERICA", "ANDALUCIA", "ATLANTICO", "BARLOVENTO", 
+  "BARRIO ABAJO", "BELLA ARENA", "BELLAVISTA", "BERNARDO HOYOS", "BETANIA", "BOSTON", 
+  "BOYACA", "BUENA ESPERANZA", "BUENAVISTA", "BUENOS AIRES", "CALIFORNIA", "CAMPO ALEGRE", 
+  "CARLOS MEISEL", "CARRIZAL", "CENTRO", "CEVILLAR", "CHIQUINQUIRA", "CIUDAD JARDIN", 
+  "CIUDAD MODESTO", "CIUDADELA 20 DE JULIO", "CIUDADELA DE LA SALUD", "COLINA CAMPESTRE", 
+  "COLOMBIA", "CORDIALIDAD", "CORREGIMIENTO JUAN MINA", "CORREGIMIENTO LA PLAYA", 
+  "CUCHILLA DE VILLATE", "EL BOSQUE", "EL CAMPITO", "EL CARMEN", "EL CASTILLO", 
+  "EL EDEN 2000", "EL EDEN I", "EL GOLF", "EL GOLFO", "EL LIMONCITO", "EL MILAGRO", 
+  "EL POBLADO", "EL PORVENIR", "EL PRADO", "EL PUEBLO", "EL RECREO", "EL ROMANCE", 
+  "EL ROSARIO", "EL RUBI", "EL SANTUARIO", "EL SILENCIO", "EL TABOR", "EL VALLE", 
+  "EVARISTO SOURDIS", "GRANADILLO", "INDUSTRIAL NORTE", "INDUSTRIAL VIA 40", 
+  "JOSE ANTONIO GALAN", "KALAMARY", "KENNEDY", "LA ALBORAYA", "LA CAMPIÑA", "LA CEIBA", 
+  "LA CHINITA", "LA CONCEPCION", "LA CUMBRE", "LA ESMERALDA", "LA FLORESTA", "LA FLORIDA", 
+  "LA GLORIA", "LA LIBERTAD", "LA LUZ", "LA MAGDALENA", "LA MANGA", "LA PAZ", "LA PRADERA", 
+  "LA SIERRA", "LA SIERRITA", "LA UNION", "LA VICTORIA", "LAS AMERICAS", "LAS CAYENAS", 
+  "LAS COLINAS", "LAS DELICIAS", "LAS DUNAS", "LAS ESTRELLAS", "LAS FLORES", "LAS GARDENIAS", 
+  "LAS GRANJAS", "LAS MALVINAS", "LAS MERCEDES", "LAS NIEVES", "LAS PALMAS", "LAS PALMERAS", 
+  "LAS TERRAZAS", "LAS TRES AVE MARIAS", "LIMON", "LIPAYA", "LOMA FRESCA", "LOS ALPES", 
+  "LOS ANDES", "LOS ANGELES I", "LOS ANGELES II", "LOS ANGELES III", "LOS CONTINENTES", 
+  "LOS GIRASOLES", "LOS JOBOS", "LOS LAURELES", "LOS NOGALES", "LOS OLIVOS I", "LOS OLIVOS II", 
+  "LOS PINOS", "LOS ROSALES", "LOS TRUPILLOS", "LUCERO", "ME QUEJO", "MERCEDES SUR", 
+  "MIRAMAR", "MODELO", "MONTECRISTO", "MONTES", "NUEVA COLOMBIA", "NUEVA GRANADA", 
+  "NUEVO HORIZONTE", "OLAYA", "PALMAS DEL RIO", "PARAISO", "PASADENA", "PASEO DE LA CASTELLANA", 
+  "POR FIN", "PRIMERO DE MAYO", "PUMAREJO", "REBOLO", "RIOMAR", "SAN FELIPE", "SAN FRANCISCO", 
+  "SAN ISIDRO", "SAN JOSE", "SAN LUIS", "SAN MARINO", "SAN NICOLAS", "SAN PEDRO", 
+  "SAN PEDRO ALEJANDRINO", "SAN ROQUE", "SAN SALVADOR", "SAN VICENTE", "SANTA ANA", 
+  "SANTA HELENA", "SANTA MARIA", "SANTA MONICA", "SANTO DOMINGO DE GUZMAN", "SANTODOMINGO", 
+  "SIAPE", "SIMON BOLIVAR", "SOLAIRE NORTE", "TAYRONA", "UNIVERSAL", "VILLA BLANCA", 
+  "VILLA CAROLINA", "VILLA COUNTRY", "VILLA DEL CARMEN", "VILLA DEL ESTE", "VILLA DEL ROSARIO", 
+  "VILLA FLOR", "VILLA SAN CARLOS", "VILLA SAN CARLOS II", "VILLA SAN PEDRO II", "VILLA SANTOS", 
+  "VILLA SEVILLA", "VILLANUEVA", "VILLAS DE SAN PABLO", "VILLATE", "ZONA FRANCA"
+];
+
+const MUNICIPIOS_VOTACION = ["Barranquilla", "Otro"];
+
+// Componente de Dropdown con búsqueda
+interface SearchableDropdownProps {
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  placeholder: string;
+  searchPlaceholder: string;
+  disabled?: boolean;
+  error?: boolean;
+}
+
+const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
+  value,
+  onChange,
+  options,
+  placeholder,
+  searchPlaceholder,
+  disabled = false,
+  error = false
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const filteredOptions = options.filter(option =>
+    option.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+        setSearchTerm('');
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelect = (option: string) => {
+    onChange(option);
+    setIsOpen(false);
+    setSearchTerm('');
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className={`w-full px-3 py-2 text-left border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 flex items-center justify-between ${
+          error ? 'border-red-300' : 'border-gray-300'
+        } ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white hover:border-gray-400'}`}
+      >
+        <span className={value ? 'text-gray-900' : 'text-gray-500'}>
+          {value || placeholder}
+        </span>
+        <ChevronDownIcon className={`w-5 h-5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+          {/* Campo de búsqueda */}
+          <div className="p-2 border-b border-gray-200">
+            <div className="relative">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder={searchPlaceholder}
+                className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                autoFocus
+              />
+            </div>
+          </div>
+
+          {/* Lista de opciones */}
+          <div className="overflow-y-auto max-h-48">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => handleSelect(option)}
+                  className={`w-full px-3 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none text-sm ${
+                    value === option ? 'bg-primary-50 text-primary-700' : 'text-gray-900'
+                  }`}
+                >
+                  {option}
+                </button>
+              ))
+            ) : (
+              <div className="px-3 py-2 text-sm text-gray-500">
+                No se encontraron resultados
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const PlanilladoModal: React.FC<PlanilladoModalProps> = ({
   planillado,
   onClose,
@@ -71,36 +217,10 @@ export const PlanilladoModal: React.FC<PlanilladoModalProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [validation, setValidation] = useState<ValidationState | null>(null);
   const [isValidating, setIsValidating] = useState(false);
-  const [barrios, setBarrios] = useState<string[]>([]);
-  const [municipios, setMunicipios] = useState<string[]>([]);
 
   const isEditing = !!planillado;
 
-  // ✅ Cargar listas para selectores
-  useEffect(() => {
-    const loadOptions = async () => {
-      try {
-        const [barriosData, municipiosData] = await Promise.all([
-          planilladosService.getBarrios(),
-          planilladosService.getMunicipios()
-        ]);
-        setBarrios(barriosData);
-        setMunicipios(municipiosData);
-      } catch (error) {
-        console.error('Error loading options:', error);
-        // Fallback data
-        setBarrios([
-          'El Prado', 'Riomar', 'Alto Prado', 'Las Flores', 'La Concepción',
-          'Boston', 'Villa Country', 'El Golf', 'Villa Santos', 'La Victoria'
-        ]);
-        setMunicipios(['Barranquilla', 'Soledad', 'Malambo', 'Puerto Colombia']);
-      }
-    };
-
-    loadOptions();
-  }, []);
-
-  // ✅ Inicializar formulario con datos del planillado
+  // Inicializar formulario con datos del planillado
   useEffect(() => {
     if (planillado) {
       setFormData({
@@ -125,7 +245,7 @@ export const PlanilladoModal: React.FC<PlanilladoModalProps> = ({
     }
   }, [planillado]);
 
-  // ✅ Validación en tiempo real para cédula
+  // Validación en tiempo real para cédula
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
 
@@ -167,7 +287,7 @@ export const PlanilladoModal: React.FC<PlanilladoModalProps> = ({
     }
   };
 
-  // ✅ Validación completa del formulario
+  // Validación completa del formulario
   const validateForm = async (): Promise<boolean> => {
     setIsValidating(true);
     const newErrors: Record<string, string> = {};
@@ -259,10 +379,17 @@ export const PlanilladoModal: React.FC<PlanilladoModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Overlay muy sutil - apenas perceptible */}
+      <div 
+        className="absolute inset-0 bg-gray-900 bg-opacity-10 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
+      
+      {/* Modal */}
+      <div className="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden border border-gray-200">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
               <UserIcon className="w-5 h-5 text-primary-600" />
@@ -278,7 +405,7 @@ export const PlanilladoModal: React.FC<PlanilladoModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-100"
             disabled={isLoading}
           >
             <XMarkIcon className="w-6 h-6" />
@@ -319,7 +446,7 @@ export const PlanilladoModal: React.FC<PlanilladoModalProps> = ({
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[calc(90vh-140px)]">
+        <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[calc(95vh-180px)]">
           <div className="p-6 space-y-6">
             
             {/* Información Personal */}
@@ -470,17 +597,14 @@ export const PlanilladoModal: React.FC<PlanilladoModalProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Barrio donde vive
                   </label>
-                  <select
+                  <SearchableDropdown
                     value={formData.barrioVive}
-                    onChange={(e) => handleInputChange('barrioVive', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    onChange={(value) => handleInputChange('barrioVive', value)}
+                    options={BARRIOS_BARRANQUILLA}
+                    placeholder="Seleccionar barrio"
+                    searchPlaceholder="Buscar barrio..."
                     disabled={isLoading}
-                  >
-                    <option value="">Seleccionar barrio</option>
-                    {barrios.map(barrio => (
-                      <option key={barrio} value={barrio}>{barrio}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
 
                 <div>
@@ -509,16 +633,14 @@ export const PlanilladoModal: React.FC<PlanilladoModalProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Municipio de Votación
                   </label>
-                  <select
+                  <SearchableDropdown
                     value={formData.municipioVotacion}
-                    onChange={(e) => handleInputChange('municipioVotacion', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    onChange={(value) => handleInputChange('municipioVotacion', value)}
+                    options={MUNICIPIOS_VOTACION}
+                    placeholder="Seleccionar municipio"
+                    searchPlaceholder="Buscar municipio..."
                     disabled={isLoading}
-                  >
-                    {municipios.map(municipio => (
-                      <option key={municipio} value={municipio}>{municipio}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
 
                 <div>
