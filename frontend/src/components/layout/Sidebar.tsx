@@ -257,11 +257,7 @@ export const Sidebar: React.FC = () => {
                     >
                       <child.icon className="w-4 h-4" />
                       <span className="font-medium">{child.name}</span>
-                      {child.href === '/campaign/planillados' && (
-                        <span className="ml-auto bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-semibold">
-                          Nuevo
-                        </span>
-                      )}
+                      {child.href === '/campaign/planillados' }
                     </NavLink>
                   ))}
                 </div>
