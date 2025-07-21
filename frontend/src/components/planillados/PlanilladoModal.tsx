@@ -382,9 +382,10 @@ export const PlanilladoModal: React.FC<PlanilladoModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Overlay muy sutil - apenas perceptible */}
       <div 
-        className="absolute inset-0 bg-gray-900 bg-opacity-10 backdrop-blur-[2px]"
-        onClick={onClose}
-      />
+  className="absolute inset-0 backdrop-blur-sm"
+  style={{ background: 'rgba(0, 0, 0, 0.08)' }}
+  onClick={onClose}
+/>
       
       {/* Modal */}
       <div className="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden border border-gray-200">

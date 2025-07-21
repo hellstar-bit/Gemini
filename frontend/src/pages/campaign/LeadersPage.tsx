@@ -123,7 +123,6 @@ export const LeadersPage: React.FC = () => {
   };
 
   const handleSave = async (data: Partial<Leader>) => {
-    setIsLoading(true);
     setError(null);
 
     try {
@@ -310,16 +309,6 @@ export const LeadersPage: React.FC = () => {
           onSave={handleSave}
           isLoading={isLoading}
         />
-      )}
-
-      {/* ✅ Loading overlay global */}
-      {isLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
-            <span className="text-gray-900">Procesando...</span>
-          </div>
-        </div>
       )}
     </div>
   );
