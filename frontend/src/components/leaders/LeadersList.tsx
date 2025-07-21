@@ -1,17 +1,18 @@
 // frontend/src/components/leaders/LeadersList.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  UserIcon,
   PencilIcon,
   TrashIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  MapPinIcon,
+  UserGroupIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ExclamationTriangleIcon,
-  UserGroupIcon
+  ShieldCheckIcon,
+  ChevronUpIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
-import { CheckCircleIcon as CheckCircleIconSolid } from '@heroicons/react/24/solid';
 import type { Leader, LeaderFiltersDto } from '../../pages/campaign/LeadersPage';
 import leadersService from '../../services/leadersService';
 
@@ -20,11 +21,17 @@ interface LeadersListProps {
   selectedIds: number[];
   onSelectionChange: (ids: number[]) => void;
   onEdit: (leader: Leader) => void;
-  onDataChange: () => void; // Para recargar datos después de cambios
+  onDataChange: () => void;
 }
 
-interface PaginatedData {
-  data: Leader[];
+interface SortConfig {
+  key: keyof Leader | null;
+  direction: 'asc' | 'desc';
+}
+
+// ✅ Interface para respuesta paginada (basada en el backend)
+interface PaginatedResponse<T> {
+  data: T[];
   meta: {
     total: number;
     page: number;
@@ -42,237 +49,175 @@ export const LeadersList: React.FC<LeadersListProps> = ({
   onEdit,
   onDataChange
 }) => {
-  const [data, setData] = useState<PaginatedData | null>(null);
+  const [leaders, setLeaders] = useState<Leader[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: 'asc' });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
 
-  // ✅ Cargar datos desde la API
-  const loadData = useCallback(async () => {
+  const itemsPerPage = 20;
+
+  // ✅ Cargar líderes - CORREGIDO
+  const loadLeaders = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await leadersService.getAll(filters, currentPage, pageSize);
-      setData(response);
+      // ✅ Llamar al servicio con parámetros separados
+      const response: PaginatedResponse<Leader> = await leadersService.getAll(
+        filters,
+        currentPage,
+        itemsPerPage
+      );
+
+      // ✅ Acceder a los datos correctamente usando la estructura meta
+      setLeaders(response.data || []);
+      setTotalPages(response.meta.totalPages || 1);
+      setTotalItems(response.meta.total || 0);
     } catch (error: any) {
       console.error('Error loading leaders:', error);
-      setError(error.message || 'Error al cargar líderes');
+      setError('Error al cargar líderes');
       
       // Fallback a datos vacíos
-      setData({
-        data: [],
-        meta: {
-          total: 0,
-          page: currentPage,
-          limit: pageSize,
-          totalPages: 0,
-          hasNextPage: false,
-          hasPrevPage: false
-        }
-      });
+      setLeaders([]);
+      setTotalPages(1);
+      setTotalItems(0);
     } finally {
       setIsLoading(false);
     }
-  }, [filters, currentPage, pageSize]);
+  }, [filters, currentPage]);
 
-  // ✅ Efectos
+  // Efectos
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadLeaders();
+  }, [loadLeaders]);
 
-  // Resetear página cuando cambien los filtros
   useEffect(() => {
-    setCurrentPage(1);
+    setCurrentPage(1); // Resetear página al cambiar filtros
   }, [filters]);
 
-  // ✅ Handlers
-  const handleSelectAll = () => {
-    if (!data) return;
-    
-    if (selectedIds.length === data.data.length) {
-      onSelectionChange([]);
-    } else {
-      onSelectionChange(data.data.map(l => l.id));
-    }
+  // Manejar ordenamiento
+  const handleSort = (key: keyof Leader) => {
+    setSortConfig(prevSort => ({
+      key,
+      direction: prevSort.key === key && prevSort.direction === 'asc' ? 'desc' : 'asc'
+    }));
   };
 
-  const handleSelectItem = (id: number) => {
-    if (selectedIds.includes(id)) {
-      onSelectionChange(selectedIds.filter(selectedId => selectedId !== id));
-    } else {
+  // Manejar selección individual
+  const handleSelectOne = (id: number, checked: boolean) => {
+    if (checked) {
       onSelectionChange([...selectedIds, id]);
+    } else {
+      onSelectionChange(selectedIds.filter(selectedId => selectedId !== id));
     }
   };
 
-  const handleDelete = async (leader: Leader) => {
-    if (!confirm(`¿Estás seguro de eliminar a ${leader.firstName} ${leader.lastName}?`)) {
-      return;
+  // Manejar selección de todos
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const currentPageIds = leaders.map(leader => leader.id);
+      const newSelection = [...new Set([...selectedIds, ...currentPageIds])];
+      onSelectionChange(newSelection);
+    } else {
+      const currentPageIds = leaders.map(leader => leader.id);
+      onSelectionChange(selectedIds.filter(id => !currentPageIds.includes(id)));
     }
+  };
 
+  // Eliminar líder individual
+  const handleDelete = async (id: number) => {
     try {
-      await leadersService.delete(leader.id);
-      await loadData();
-      onDataChange(); // Recargar stats
-      onSelectionChange(selectedIds.filter(id => id !== leader.id));
+      await leadersService.delete(id);
+      await loadLeaders();
+      onDataChange(); // Actualizar estadísticas
+      setShowDeleteConfirm(null);
     } catch (error: any) {
-      alert(error.message || 'Error al eliminar líder');
+      console.error('Error deleting leader:', error);
+      setError('Error al eliminar líder');
     }
   };
 
-  const handleToggleStatus = async (leader: Leader) => {
-    try {
-      await leadersService.update(leader.id, { isActive: !leader.isActive });
-      await loadData();
-      onDataChange(); // Recargar stats
-    } catch (error: any) {
-      alert(error.message || 'Error al actualizar estado');
-    }
+  // Componente de header de tabla ordenable
+  const SortableHeader: React.FC<{
+    label: string;
+    sortKey: keyof Leader;
+    className?: string;
+  }> = ({ label, sortKey, className = '' }) => {
+    const isSorted = sortConfig.key === sortKey;
+    const direction = sortConfig.direction;
+
+    return (
+      <th
+        onClick={() => handleSort(sortKey)}
+        className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${className}`}
+      >
+        <div className="flex items-center space-x-1">
+          <span>{label}</span>
+          <div className="flex flex-col">
+            <ChevronUpIcon 
+              className={`w-3 h-3 ${isSorted && direction === 'asc' ? 'text-primary-600' : 'text-gray-300'}`} 
+            />
+            <ChevronDownIcon 
+              className={`w-3 h-3 -mt-1 ${isSorted && direction === 'desc' ? 'text-primary-600' : 'text-gray-300'}`} 
+            />
+          </div>
+        </div>
+      </th>
+    );
   };
 
-  const handleToggleVerified = async (leader: Leader) => {
-    try {
-      await leadersService.update(leader.id, { isVerified: !leader.isVerified });
-      await loadData();
-      onDataChange(); // Recargar stats
-    } catch (error: any) {
-      alert(error.message || 'Error al actualizar verificación');
-    }
-  };
-
-  const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
-  };
-
-  const handlePageSizeChange = (newPageSize: number) => {
-    setPageSize(newPageSize);
-    setCurrentPage(1);
-  };
-
-  // ✅ Formateo de datos
-  const formatDate = (date: Date | string) => {
-    if (!date) return '-';
-    return new Date(date).toLocaleDateString('es-CO');
-  };
-
-  const getStatusBadge = (isActive: boolean, isVerified: boolean) => {
-    if (isVerified) {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-          <CheckCircleIconSolid className="w-3 h-3 mr-1" />
-          Verificado
-        </span>
-      );
-    } else if (isActive) {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-          <UserIcon className="w-3 h-3 mr-1" />
+  // Componente de estado del líder
+  const LeaderStatus: React.FC<{ leader: Leader }> = ({ leader }) => (
+    <div className="flex flex-wrap gap-1">
+      {leader.isActive ? (
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+          <CheckCircleIcon className="w-3 h-3 mr-1" />
           Activo
         </span>
-      );
-    } else {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+      ) : (
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
           <XCircleIcon className="w-3 h-3 mr-1" />
           Inactivo
         </span>
-      );
-    }
-  };
+      )}
+      {leader.isVerified && (
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+          <ShieldCheckIcon className="w-3 h-3 mr-1" />
+          Verificado
+        </span>
+      )}
+    </div>
+  );
 
-  // ✅ Estados de carga
-  if (isLoading && !data) {
-    return (
-      <div className="bg-white rounded-xl border border-gray-200 p-8">
-        <div className="flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
-          <span className="ml-3 text-gray-600">Cargando líderes...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error && !data) {
-    return (
-      <div className="bg-white rounded-xl border border-red-200 p-8">
-        <div className="flex items-center justify-center text-red-600">
-          <ExclamationTriangleIcon className="w-8 h-8 mr-3" />
-          <div>
-            <p className="font-medium">Error al cargar datos</p>
-            <p className="text-sm text-red-500">{error}</p>
-            <button
-              onClick={loadData}
-              className="mt-2 text-sm bg-red-100 hover:bg-red-200 px-3 py-1 rounded"
-            >
-              Reintentar
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!data || data.data.length === 0) {
-    return (
-      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-        <UserGroupIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
-          No hay líderes
-        </h3>
-        <p className="text-gray-600">
-          {Object.keys(filters).length > 0 
-            ? 'No se encontraron líderes con los filtros aplicados'
-            : 'Aún no hay líderes registrados en el sistema'
-          }
-        </p>
-      </div>
-    );
-  }
+  // Verificar si todos los elementos de la página actual están seleccionados
+  const currentPageIds = leaders.map(leader => leader.id);
+  const allCurrentPageSelected = currentPageIds.length > 0 && 
+    currentPageIds.every(id => selectedIds.includes(id));
+  const someCurrentPageSelected = currentPageIds.some(id => selectedIds.includes(id));
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      {/* Header con controles */}
-      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                checked={data.data.length > 0 && selectedIds.length === data.data.length}
-                onChange={handleSelectAll}
-                className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-              />
-              <span className="ml-2 text-sm text-gray-600">
-                {selectedIds.length > 0 
-                  ? `${selectedIds.length} seleccionados`
-                  : `${data.meta.total} líderes`
-                }
-              </span>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Lista de Líderes
+            </h3>
+            <p className="text-sm text-gray-600">
+              {totalItems} líder{totalItems !== 1 ? 'es' : ''} encontrado{totalItems !== 1 ? 's' : ''}
+            </p>
+          </div>
+          
+          {selectedIds.length > 0 && (
+            <div className="text-sm text-primary-600 font-medium">
+              {selectedIds.length} seleccionado{selectedIds.length > 1 ? 's' : ''}
             </div>
-            
-            {isLoading && (
-              <div className="flex items-center text-sm text-gray-500">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500 mr-2"></div>
-                Actualizando...
-              </div>
-            )}
-          </div>
-
-          {/* Control de página */}
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600">Filas por página:</span>
-            <select
-              value={pageSize}
-              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-              className="border border-gray-300 rounded px-2 py-1 text-sm"
-            >
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
+          )}
         </div>
       </div>
 
@@ -281,186 +226,276 @@ export const LeadersList: React.FC<LeadersListProps> = ({
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left">
                 <input
                   type="checkbox"
-                  checked={data.data.length > 0 && selectedIds.length === data.data.length}
-                  onChange={handleSelectAll}
-                  className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                  checked={allCurrentPageSelected}
+                  ref={input => {
+                    if (input) input.indeterminate = someCurrentPageSelected && !allCurrentPageSelected;
+                  }}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                 />
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Información Personal
-              </th>
+              <SortableHeader label="Nombre" sortKey="firstName" />
+              <SortableHeader label="Cédula" sortKey="cedula" />
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Contacto
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Grupo y Ubicación
+                Ubicación
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Estadísticas
-              </th>
+              <SortableHeader label="Grupo" sortKey="groupId" />
+              <SortableHeader label="Meta" sortKey="meta" />
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Estado
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <SortableHeader label="Fecha" sortKey="createdAt" />
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Acciones
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {data.data.map((leader) => (
-              <tr
-                key={leader.id}
-                className={`hover:bg-gray-50 ${selectedIds.includes(leader.id) ? 'bg-primary-50' : ''}`}
-              >
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(leader.id)}
-                    onChange={() => handleSelectItem(leader.id)}
-                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                  />
-                </td>
-                
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0 h-10 w-10">
-                      <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                        <UserGroupIcon className="h-5 w-5 text-green-600" />
-                      </div>
-                    </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900">
-                        {leader.firstName} {leader.lastName}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        CC: {leader.cedula}
-                      </div>
-                    </div>
+            {isLoading ? (
+              <tr>
+                <td colSpan={10} className="px-6 py-12 text-center">
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+                    <span className="ml-3 text-gray-600">Cargando líderes...</span>
                   </div>
                 </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
-                    {leader.phone || '-'}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {leader.email || '-'}
-                  </div>
-                </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
-                    {leader.group?.name || 'Sin grupo'}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {leader.neighborhood || '-'}
-                    {leader.municipality && `, ${leader.municipality}`}
-                  </div>
-                </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
-                    Meta: {leader.meta} votantes
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    Actual: {leader.votersCount || 0} planillados
-                  </div>
-                </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {getStatusBadge(leader.isActive, leader.isVerified)}
-                </td>
-
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div className="flex items-center justify-end space-x-2">
+              </tr>
+            ) : error ? (
+              <tr>
+                <td colSpan={10} className="px-6 py-12 text-center">
+                  <div className="text-red-600">
+                    <p className="font-medium">Error al cargar los datos</p>
+                    <p className="text-sm mt-1">{error}</p>
                     <button
-                      onClick={() => handleToggleVerified(leader)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        leader.isVerified
-                          ? 'text-yellow-600 hover:bg-yellow-100'
-                          : 'text-green-600 hover:bg-green-100'
-                      }`}
-                      title={leader.isVerified ? 'Quitar verificación' : 'Verificar'}
+                      onClick={loadLeaders}
+                      className="mt-3 text-primary-600 hover:text-primary-700 font-medium"
                     >
-                      <CheckCircleIcon className="w-4 h-4" />
-                    </button>
-
-                    <button
-                      onClick={() => handleToggleStatus(leader)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        leader.isActive
-                          ? 'text-red-600 hover:bg-red-100'
-                          : 'text-green-600 hover:bg-green-100'
-                      }`}
-                      title={leader.isActive ? 'Desactivar' : 'Activar'}
-                    >
-                      {leader.isActive ? <XCircleIcon className="w-4 h-4" /> : <CheckCircleIcon className="w-4 h-4" />}
-                    </button>
-                    
-                    <button
-                      onClick={() => onEdit(leader)}
-                      className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                      title="Editar"
-                    >
-                      <PencilIcon className="w-4 h-4" />
-                    </button>
-                    
-                    <button
-                      onClick={() => handleDelete(leader)}
-                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                      title="Eliminar"
-                    >
-                      <TrashIcon className="w-4 h-4" />
+                      Intentar de nuevo
                     </button>
                   </div>
                 </td>
               </tr>
-            ))}
+            ) : leaders.length === 0 ? (
+              <tr>
+                <td colSpan={10} className="px-6 py-12 text-center">
+                  <UserGroupIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No se encontraron líderes</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Intenta ajustar los filtros o crear un nuevo líder
+                  </p>
+                </td>
+              </tr>
+            ) : (
+              leaders.map((leader) => (
+                <tr 
+                  key={leader.id}
+                  className={`hover:bg-gray-50 ${
+                    selectedIds.includes(leader.id) ? 'bg-primary-50' : ''
+                  }`}
+                >
+                  <td className="px-6 py-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(leader.id)}
+                      onChange={(e) => handleSelectOne(leader.id, e.target.checked)}
+                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
+                  </td>
+                  
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 h-10 w-10">
+                        <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
+                          <span className="text-sm font-medium text-primary-600">
+                            {leader.firstName?.charAt(0)}{leader.lastName?.charAt(0)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">
+                          {leader.firstName} {leader.lastName}
+                        </div>
+                        {leader.gender && (
+                          <div className="text-sm text-gray-500">
+                            {leader.gender === 'M' ? 'Masculino' : leader.gender === 'F' ? 'Femenino' : 'Otro'}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{leader.cedula}</div>
+                  </td>
+                  
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="space-y-1">
+                      {leader.phone && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <PhoneIcon className="w-4 h-4 mr-1" />
+                          {leader.phone}
+                        </div>
+                      )}
+                      {leader.email && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <EnvelopeIcon className="w-4 h-4 mr-1" />
+                          {leader.email.length > 20 ? leader.email.substring(0, 20) + '...' : leader.email}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="space-y-1">
+                      {leader.neighborhood && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <MapPinIcon className="w-4 h-4 mr-1" />
+                          {leader.neighborhood}
+                        </div>
+                      )}
+                      {leader.municipality && (
+                        <div className="text-sm text-gray-500">
+                          {leader.municipality}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center text-sm">
+                      <UserGroupIcon className="w-4 h-4 mr-1 text-gray-400" />
+                      <span className="text-gray-900">ID: {leader.groupId}</span>
+                      {leader.group && (
+                        <div className="text-gray-500 ml-1">
+                          ({leader.group.name})
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{leader.meta}</div>
+                    {leader.votersCount !== undefined && (
+                      <div className="text-sm text-gray-500">
+                        {leader.votersCount} actual
+                      </div>
+                    )}
+                  </td>
+                  
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <LeaderStatus leader={leader} />
+                  </td>
+                  
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {new Date(leader.createdAt).toLocaleDateString()}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {new Date(leader.updatedAt).toLocaleDateString()}
+                    </div>
+                  </td>
+                  
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => onEdit(leader)}
+                        className="text-primary-600 hover:text-primary-900 p-1 rounded hover:bg-primary-50"
+                        title="Editar líder"
+                      >
+                        <PencilIcon className="w-4 h-4" />
+                      </button>
+                      
+                      <button
+                        onClick={() => setShowDeleteConfirm(leader.id)}
+                        className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+                        title="Eliminar líder"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
       {/* Paginación */}
-      {data.meta.totalPages > 1 && (
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+      {totalPages > 1 && (
+        <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Mostrando {((data.meta.page - 1) * data.meta.limit) + 1} a{' '}
-              {Math.min(data.meta.page * data.meta.limit, data.meta.total)} de{' '}
-              {data.meta.total} resultados
+            <div className="flex items-center">
+              <p className="text-sm text-gray-700">
+                Mostrando{' '}
+                <span className="font-medium">
+                  {((currentPage - 1) * itemsPerPage) + 1}
+                </span>{' '}
+                a{' '}
+                <span className="font-medium">
+                  {Math.min(currentPage * itemsPerPage, totalItems)}
+                </span>{' '}
+                de{' '}
+                <span className="font-medium">{totalItems}</span> resultados
+              </p>
             </div>
             
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => handlePageChange(data.meta.page - 1)}
-                disabled={!data.meta.hasPrevPage}
-                className={`p-2 rounded-lg ${
-                  data.meta.hasPrevPage
-                    ? 'text-gray-600 hover:bg-gray-200'
-                    : 'text-gray-400 cursor-not-allowed'
-                }`}
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-sm text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <ChevronLeftIcon className="w-4 h-4" />
+                Anterior
               </button>
               
-              <span className="text-sm text-gray-600">
-                Página {data.meta.page} de {data.meta.totalPages}
+              <span className="text-sm text-gray-700">
+                Página {currentPage} de {totalPages}
               </span>
               
               <button
-                onClick={() => handlePageChange(data.meta.page + 1)}
-                disabled={!data.meta.hasNextPage}
-                className={`p-2 rounded-lg ${
-                  data.meta.hasNextPage
-                    ? 'text-gray-600 hover:bg-gray-200'
-                    : 'text-gray-400 cursor-not-allowed'
-                }`}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-sm text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <ChevronRightIcon className="w-4 h-4" />
+                Siguiente
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación de eliminación */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Confirmar Eliminación
+              </h3>
+              <p className="text-sm text-gray-600 mb-6">
+                ¿Estás seguro de que deseas eliminar este líder? Esta acción no se puede deshacer.
+              </p>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(null)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => handleDelete(showDeleteConfirm)}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors"
+                >
+                  Eliminar
+                </button>
+              </div>
             </div>
           </div>
         </div>

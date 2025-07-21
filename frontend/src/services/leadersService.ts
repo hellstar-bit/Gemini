@@ -41,7 +41,7 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Interfaces para respuestas
+// ✅ Interface para respuesta paginada (consistente con el backend)
 interface PaginatedResponse<T> {
   data: T[];
   meta: {
@@ -75,6 +75,10 @@ interface DuplicateCheck {
   };
 }
 
+interface BulkActionResponse {
+  affected: number;
+}
+
 export const leadersService = {
   // ✅ Obtener líderes con filtros y paginación
   async getAll(
@@ -83,12 +87,21 @@ export const leadersService = {
     limit: number = 20
   ): Promise<PaginatedResponse<Leader>> {
     try {
+      // Construir parámetros de query
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: limit.toString(),
-        ...Object.fromEntries(
-          Object.entries(filters).filter(([_, value]) => value !== undefined && value !== '')
-        ),
+        limit: limit.toString()
+      });
+
+      // Agregar filtros si existen
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          if (value instanceof Date) {
+            params.append(key, value.toISOString());
+          } else {
+            params.append(key, value.toString());
+          }
+        }
       });
 
       const response = await apiClient.get(`/leaders?${params}`);
@@ -102,11 +115,17 @@ export const leadersService = {
   // ✅ Obtener estadísticas
   async getStats(filters: LeaderFiltersDto = {}): Promise<LeaderStatsDto> {
     try {
-      const params = new URLSearchParams(
-        Object.fromEntries(
-          Object.entries(filters).filter(([_, value]) => value !== undefined && value !== '')
-        )
-      );
+      const params = new URLSearchParams();
+      
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          if (value instanceof Date) {
+            params.append(key, value.toISOString());
+          } else {
+            params.append(key, value.toString());
+          }
+        }
+      });
 
       const response = await apiClient.get(`/leaders/stats?${params}`);
       return response.data;
@@ -164,36 +183,70 @@ export const leadersService = {
   },
 
   // ✅ Acciones masivas
-  async bulkAction(action: string, ids: number[], groupId?: number): Promise<{ affected: number }> {
+  async bulkAction(action: string, ids: number[], groupId?: number): Promise<BulkActionResponse> {
     try {
-      const payload: any = { action, ids };
-      if (groupId) payload.groupId = groupId;
-
-      const response = await apiClient.post('/leaders/bulk-actions', payload);
+      const response = await apiClient.post('/leaders/bulk-action', {
+        action,
+        ids,
+        groupId
+      });
       return response.data;
     } catch (error: any) {
       if (error.response?.data?.message) {
         throw new Error(error.response.data.message);
       }
-      throw new Error('Error en acción masiva');
+      throw new Error(`Error en acción masiva: ${action}`);
+    }
+  },
+
+  // ✅ Validar datos de líder
+  async validate(data: Partial<Leader>): Promise<ValidationResult> {
+    try {
+      const response = await apiClient.post('/leaders/validate', data);
+      return response.data;
+    } catch (error) {
+      console.error('Error validating leader:', error);
+      throw new Error('Error al validar datos del líder');
+    }
+  },
+
+  // ✅ Verificar duplicados
+  async checkDuplicate(cedula: string, excludeId?: number): Promise<DuplicateCheck> {
+    try {
+      const params = new URLSearchParams({ cedula });
+      if (excludeId) {
+        params.append('excludeId', excludeId.toString());
+      }
+      
+      const response = await apiClient.get(`/leaders/check-duplicate?${params}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error checking duplicate:', error);
+      throw new Error('Error al verificar duplicados');
     }
   },
 
   // ✅ Exportar a Excel
   async exportToExcel(filters: LeaderFiltersDto = {}): Promise<Blob> {
     try {
-      const params = new URLSearchParams(
-        Object.fromEntries(
-          Object.entries(filters).filter(([_, value]) => value !== undefined && value !== '')
-        )
-      );
-
-      const response = await apiClient.get(`/leaders/export?${params}`, {
-        responseType: 'blob',
+      const params = new URLSearchParams();
+      
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          if (value instanceof Date) {
+            params.append(key, value.toISOString());
+          } else {
+            params.append(key, value.toString());
+          }
+        }
       });
 
+      const response = await apiClient.get(`/leaders/export?${params}`, {
+        responseType: 'blob'
+      });
+      
       return new Blob([response.data], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       });
     } catch (error) {
       console.error('Error exporting leaders:', error);
@@ -201,111 +254,39 @@ export const leadersService = {
     }
   },
 
-  // ✅ Obtener líderes para dropdowns
-  async getForSelect(): Promise<Array<{ id: number; name: string; groupName?: string }>> {
-    try {
-      const response = await apiClient.get('/leaders/for-select');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching leaders for select:', error);
-      return [];
-    }
-  },
-
-  // ✅ Obtener planillados de un líder
-  async getPlanillados(leaderId: number): Promise<any[]> {
-    try {
-      const response = await apiClient.get(`/leaders/${leaderId}/planillados`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching leader planillados:', error);
-      return [];
-    }
-  },
-
-  // ✅ Validar líder
-  async validate(data: Partial<Leader>): Promise<ValidationResult> {
-    try {
-      const response = await apiClient.post('/leaders/validate', data);
-      return response.data;
-    } catch (error) {
-      console.error('Error validating leader:', error);
-      return {
-        isValid: false,
-        errors: ['Error en validación'],
-        warnings: [],
-        suggestions: {},
-      };
-    }
-  },
-
-  // ✅ Verificar duplicados
-  async checkDuplicates(cedula: string): Promise<DuplicateCheck> {
-    try {
-      const response = await apiClient.get(`/leaders/duplicates/check?cedula=${cedula}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error checking duplicates:', error);
-      return { exists: false };
-    }
-  },
-
-  // ✅ Obtener grupos para dropdowns
-  async getGroups(): Promise<Array<{ id: number; name: string }>> {
-    try {
-      const response = await apiClient.get('/groups/for-select');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching groups:', error);
-      // Fallback a datos de ejemplo
-      return [
-        { id: 1, name: 'Grupo Norte' },
-        { id: 2, name: 'Grupo Sur' },
-        { id: 3, name: 'Grupo Centro' },
-        { id: 4, name: 'Grupo Este' },
-        { id: 5, name: 'Grupo Oeste' }
-      ];
-    }
-  },
-
-  // ✅ Obtener barrios únicos
-  async getNeighborhoods(): Promise<string[]> {
-    try {
-      const response = await apiClient.get('/leaders/neighborhoods');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching neighborhoods:', error);
-      // Fallback a lista estática
-      return [
-        'EL PRADO', 'CENTRO', 'ALTO PRADO', 'GRANADILLO', 'LAS FLORES',
-        'BOSTON', 'CIUDAD JARDIN', 'LA CONCEPCION', 'VILLA CAROLINA',
-        'SAN NICOLAS', 'RIOMAR', 'BUENAVISTA', 'LOS ANGELES'
-      ];
-    }
-  },
-
-  // ✅ Obtener municipios únicos
-  async getMunicipalities(): Promise<string[]> {
-    try {
-      const response = await apiClient.get('/leaders/municipalities');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching municipalities:', error);
-      return ['Barranquilla', 'Soledad', 'Malambo', 'Puerto Colombia'];
-    }
-  },
-
-  // ✅ Utilidades
-  downloadExcel(blob: Blob, filename: string = 'lideres.xlsx') {
+  // ✅ Descargar archivo Excel
+  downloadExcel(blob: Blob, filename?: string): void {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = filename;
+    link.download = filename || `lideres_${new Date().toISOString().split('T')[0]}.xlsx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
   },
+
+  // ✅ Obtener líderes para select (versión simplificada)
+  async getForSelect(): Promise<{ id: number; name: string; groupName?: string }[]> {
+    try {
+      const response = await apiClient.get('/leaders/for-select');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching leaders for select:', error);
+      throw new Error('Error al cargar líderes');
+    }
+  },
+
+  // ✅ Sincronizar con fuente externa (si aplica)
+  async sync(): Promise<{ updated: number; created: number; errors: number }> {
+    try {
+      const response = await apiClient.post('/leaders/sync');
+      return response.data;
+    } catch (error) {
+      console.error('Error syncing leaders:', error);
+      throw new Error('Error al sincronizar líderes');
+    }
+  }
 };
 
 export default leadersService;

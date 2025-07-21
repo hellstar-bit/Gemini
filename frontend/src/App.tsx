@@ -1,4 +1,4 @@
-// frontend/src/App.tsx - Actualizado con Planillados
+// frontend/src/App.tsx - Actualizado con LeadersPage
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from './store';
@@ -6,7 +6,8 @@ import { AuthPage } from './pages/AuthPage';
 import { Dashboard } from './pages/Dashboard';
 import { ComingSoon } from './pages/ComingSoon';
 import { ImportPage } from './pages/operations/ImportPage';
-import { PlanilladosPage } from './pages/campaign/PlanilladosPage'; // ✅ NUEVO
+import { PlanilladosPage } from './pages/campaign/PlanilladosPage';
+import { LeadersPage } from './pages/campaign/LeadersPage'; // ✅ NUEVO - Importar LeadersPage
 import { Layout } from './components/layout/Layout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import './index.css';
@@ -28,8 +29,8 @@ function App() {
               <Route path="campaign" element={<ComingSoon />} />
               <Route path="campaign/candidates" element={<ComingSoon />} />
               <Route path="campaign/groups" element={<ComingSoon />} />
-              <Route path="campaign/leaders" element={<ComingSoon />} />
-              <Route path="campaign/planillados" element={<PlanilladosPage />} /> {/* ✅ NUEVO */}
+              <Route path="campaign/leaders" element={<LeadersPage />} /> {/* ✅ ACTIVADO - Ruta de Líderes */}
+              <Route path="campaign/planillados" element={<PlanilladosPage />} />
               
               {/* Centro de Operaciones */}
               <Route path="operations" element={<ComingSoon />} />
@@ -46,20 +47,26 @@ function App() {
               {/* Inteligencia Electoral */}
               <Route path="analytics" element={<ComingSoon />} />
               <Route path="analytics/maps" element={<ComingSoon />} />
-              <Route path="analytics/stats" element={<ComingSoon />} />
-              <Route path="analytics/reports" element={<ComingSoon />} />
+              <Route path="analytics/territorial" element={<ComingSoon />} />
+              <Route path="analytics/activity" element={<ComingSoon />} />
               
               {/* Centro de Comando */}
               <Route path="command" element={<ComingSoon />} />
+              <Route path="command/dashboard" element={<ComingSoon />} />
+              <Route path="command/control" element={<ComingSoon />} />
+              <Route path="command/alerts" element={<ComingSoon />} />
               
               {/* Datos de Referencia */}
               <Route path="reference" element={<ComingSoon />} />
+              <Route path="reference/municipalities" element={<ComingSoon />} />
+              <Route path="reference/neighborhoods" element={<ComingSoon />} />
+              <Route path="reference/voting-sites" element={<ComingSoon />} />
             </Route>
             
-            {/* Catch all */}
+            {/* Ruta de fallback */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
-        </Router>
+      </Router>
     </Provider>
   );
 }
