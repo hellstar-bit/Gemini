@@ -1,8 +1,9 @@
+// frontend/src/components/planillados/PlanilladosMap.tsx - CORREGIDO
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import './PlanilladosMap.css'; // Importar los estilos CSS
+import './PlanilladosMap.css';
 import {
   GlobeAltIcon,
   ArrowsPointingOutIcon,
@@ -13,18 +14,9 @@ import {
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
 import { geographicService } from '../../services/geographicService';
-// Interfaces
-interface PlanilladoFiltersDto {
-  estado?: 'verificado' | 'pendiente';
-  liderId?: number;
-  grupoId?: number;
-  esEdil?: boolean;
-  genero?: 'M' | 'F' | 'Otro';
-  fechaDesde?: Date;
-  fechaHasta?: Date;
-  barrioVive?: string;
-}
+import type { PlanilladoFiltersDto } from '../../pages/campaign/PlanilladosPage';
 
+// Interfaces
 interface BarrioStats {
   total: number;
   verificados: number;
@@ -49,7 +41,7 @@ interface GeographicData {
   };
 }
 
-interface PlanilladosHeatMapProps {
+interface PlanilladosMapProps {
   filters?: PlanilladoFiltersDto;
   onFiltersChange?: (filters: PlanilladoFiltersDto) => void;
 }
@@ -65,7 +57,7 @@ const MapController: React.FC<{ center: [number, number]; zoom: number }> = ({ c
   return null;
 };
 
-export const PlanilladosMap: React.FC<PlanilladosHeatMapProps> = ({ 
+export const PlanilladosMap: React.FC<PlanilladosMapProps> = ({ 
   filters = {}, 
   onFiltersChange 
 }) => {
@@ -88,18 +80,18 @@ export const PlanilladosMap: React.FC<PlanilladosHeatMapProps> = ({
   }, [mapFilters]);
 
   const loadGeographicData = async () => {
-  try {
-    setLoading(true);
-    setError(null);
-    
-    const data = await geographicService.getGeographicData(mapFilters);
-    setGeoData(data);
-  } catch (err) {
-    setError(err instanceof Error ? err.message : 'Error desconocido');
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const data = await geographicService.getGeographicData(mapFilters);
+      setGeoData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error desconocido');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Función para obtener color según densidad
   const getColorByDensity = (densidad: string, opacity = 0.7) => {
@@ -211,6 +203,17 @@ export const PlanilladosMap: React.FC<PlanilladosHeatMapProps> = ({
       .slice(0, 5);
   }, [geoData]);
 
+  // Exportar datos
+  const handleExport = async () => {
+    try {
+      const blob = await geographicService.exportGeographicData(mapFilters, 'excel');
+      geographicService.downloadFile(blob, 'mapa-planillados.xlsx');
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      alert('Error al exportar datos');
+    }
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-8">
@@ -276,7 +279,10 @@ export const PlanilladosMap: React.FC<PlanilladosHeatMapProps> = ({
               <option value="categorias">% Verificados</option>
             </select>
 
-            <button className="inline-flex items-center px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+            <button 
+              onClick={handleExport}
+              className="inline-flex items-center px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            >
               <DocumentArrowDownIcon className="w-4 h-4 mr-2" />
               Exportar
             </button>
@@ -457,7 +463,7 @@ export const PlanilladosMap: React.FC<PlanilladosHeatMapProps> = ({
                     <div>Líderes activos: {selectedBarrio.stats.lideres}</div>
                     <div>Grupos: {selectedBarrio.stats.grupos}</div>
                     <div>% del total: {selectedBarrio.stats.porcentaje}%</div>
-                    <div>Localidad: {selectedBarrio.properties.localidad}</div>
+                    <div>Densidad: {selectedBarrio.stats.densidad}</div>
                   </div>
                 </div>
               </div>
@@ -577,8 +583,8 @@ export const PlanilladosMap: React.FC<PlanilladosHeatMapProps> = ({
           </div>
         </div>
       </div>
-
     </div>
   );
 };
+
 export default PlanilladosMap;

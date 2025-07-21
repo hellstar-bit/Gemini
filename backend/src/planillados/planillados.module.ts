@@ -13,6 +13,6 @@ import { Group } from '../groups/entities/group.entity';
   ],
   controllers: [PlanilladosController],
   providers: [PlanilladosService],
-  exports: [PlanilladosService], // Para usar en otros módulos
+  exports: [PlanilladosService],
 })
 export class PlanilladosModule {}

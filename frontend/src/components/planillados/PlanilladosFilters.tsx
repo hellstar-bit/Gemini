@@ -1,14 +1,14 @@
 // frontend/src/components/planillados/PlanilladosFilters.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   MagnifyingGlassIcon,
+  FunnelIcon,
   XMarkIcon,
+  CalendarDaysIcon,
   MapPinIcon,
-  UserIcon,
-  CalendarIcon,
-  AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
 import type { PlanilladoFiltersDto } from '../../pages/campaign/PlanilladosPage';
+import planilladosService from '../../services/planilladosService';
 
 interface PlanilladosFiltersProps {
   filters: PlanilladoFiltersDto;
@@ -19,338 +19,326 @@ export const PlanilladosFilters: React.FC<PlanilladosFiltersProps> = ({
   filters,
   onFiltersChange
 }) => {
+  const [localFilters, setLocalFilters] = useState<PlanilladoFiltersDto>(filters);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(filters.buscar || '');
+  const [barrios, setBarrios] = useState<string[]>([]);
+  const [municipios, setMunicipios] = useState<string[]>([]);
 
-  // Datos mock para los selectores
-  const barrios = [
-    'El Prado', 'Riomar', 'Alto Prado', 'Las Flores', 'La Concepción',
-    'Ciudad Jardín', 'Granadillo', 'Villa Country', 'Villa Santos',
-    'El Golf', 'Buenavista', 'Modelo', 'Betania', 'San Salvador'
-  ];
+  // Cargar listas para dropdowns
+  useEffect(() => {
+    const loadOptions = async () => {
+      try {
+        const [barriosData, municipiosData] = await Promise.all([
+          planilladosService.getBarrios(),
+          planilladosService.getMunicipios()
+        ]);
+        setBarrios(barriosData);
+        setMunicipios(municipiosData);
+      } catch (error) {
+        console.error('Error loading filter options:', error);
+      }
+    };
 
-  const lideres = [
-    { id: 1, nombre: 'Carlos Rodríguez' },
-    { id: 2, nombre: 'Ana González' },
-    { id: 3, nombre: 'Miguel Torres' },
-    { id: 4, nombre: 'Laura Martínez' },
-    { id: 5, nombre: 'Pedro Sánchez' }
-  ];
+    loadOptions();
+  }, []);
 
-  const grupos = [
-    { id: 1, nombre: 'Grupo Norte' },
-    { id: 2, nombre: 'Grupo Centro' },
-    { id: 3, nombre: 'Grupo Sur' },
-    { id: 4, nombre: 'Grupo Oriente' },
-    { id: 5, nombre: 'Grupo Occidente' }
-  ];
+  // Sincronizar filtros externos con estado local
+  useEffect(() => {
+    setLocalFilters(filters);
+  }, [filters]);
 
-  const municipios = [
-    'Barranquilla', 'Soledad', 'Malambo', 'Puerto Colombia', 
-    'Galapa', 'Pradera', 'Baranoa'
-  ];
-
-  const rangosEdad = [
-    '18-24', '25-34', '35-44', '45-54', '55-64', '65+'
-  ];
+  // Detectar si hay filtros avanzados activos
+  useEffect(() => {
+    const hasAdvancedFilters = !!(
+      localFilters.barrioVive ||
+      localFilters.municipioVotacion ||
+      localFilters.genero ||
+      localFilters.rangoEdad ||
+      localFilters.fechaDesde ||
+      localFilters.fechaHasta ||
+      localFilters.actualizado !== undefined
+    );
+    
+    if (hasAdvancedFilters) {
+      setShowAdvanced(true);
+    }
+  }, [localFilters]);
 
   const handleFilterChange = (key: keyof PlanilladoFiltersDto, value: any) => {
-    const newFilters = {
-      ...filters,
-      [key]: value === '' ? undefined : value
-    };
+    const newFilters = { ...localFilters, [key]: value };
+    setLocalFilters(newFilters);
     onFiltersChange(newFilters);
   };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleFilterChange('buscar', searchTerm);
-  };
-
-  const clearAllFilters = () => {
-    setSearchTerm('');
-    onFiltersChange({});
+  const handleClearFilters = () => {
+    const clearedFilters: PlanilladoFiltersDto = {};
+    setLocalFilters(clearedFilters);
+    onFiltersChange(clearedFilters);
+    setShowAdvanced(false);
   };
 
   const getActiveFiltersCount = () => {
-    return Object.values(filters).filter(value => 
+    return Object.values(localFilters).filter(value => 
       value !== undefined && value !== '' && value !== null
     ).length;
   };
 
-  const activeFiltersCount = getActiveFiltersCount();
-
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
-      {/* Barra principal de filtros */}
-      <div className="p-4 border-b border-gray-100">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-          {/* Búsqueda */}
-          <form onSubmit={handleSearchSubmit} className="flex-1">
-            <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por cédula, nombre, apellido..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              />
-            </div>
-          </form>
-
-          {/* Filtros rápidos */}
-          <div className="flex items-center gap-3">
-            {/* Estado */}
-            <select
-              value={filters.estado || ''}
-              onChange={(e) => handleFilterChange('estado', e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="">Todos los estados</option>
-              <option value="verificado">Verificados</option>
-              <option value="pendiente">Pendientes</option>
-            </select>
-
-            {/* Barrio */}
-            <select
-              value={filters.barrioVive || ''}
-              onChange={(e) => handleFilterChange('barrioVive', e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="">Todos los barrios</option>
-              {barrios.map(barrio => (
-                <option key={barrio} value={barrio}>{barrio}</option>
-              ))}
-            </select>
-
-            {/* Tipo */}
-            <select
-              value={filters.esEdil?.toString() || ''}
-              onChange={(e) => handleFilterChange('esEdil', e.target.value === 'true')}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="">Todos</option>
-              <option value="true">Solo Ediles</option>
-              <option value="false">Solo Planillados</option>
-            </select>
-
-            {/* Botón filtros avanzados */}
-            <button
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className={`flex items-center px-3 py-2 border rounded-lg transition-colors ${
-                showAdvanced || activeFiltersCount > 0
-                  ? 'border-primary-500 bg-primary-50 text-primary-700'
-                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <AdjustmentsHorizontalIcon className="w-5 h-5 mr-2" />
-              Avanzado
-              {activeFiltersCount > 0 && (
-                <span className="ml-2 px-2 py-1 bg-primary-500 text-white text-xs rounded-full">
-                  {activeFiltersCount}
-                </span>
-              )}
-            </button>
-
-            {/* Limpiar filtros */}
-            {activeFiltersCount > 0 && (
-              <button
-                onClick={clearAllFilters}
-                className="flex items-center px-3 py-2 text-gray-500 hover:text-gray-700 transition-colors"
-                title="Limpiar todos los filtros"
-              >
-                <XMarkIcon className="w-5 h-5" />
-              </button>
-            )}
+    <div className="bg-white rounded-xl border border-gray-200 p-6">
+      {/* Filtros básicos */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        {/* Búsqueda general */}
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Buscar planillado
+          </label>
+          <div className="relative">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              value={localFilters.buscar || ''}
+              onChange={(e) => handleFilterChange('buscar', e.target.value)}
+              placeholder="Cédula, nombres, apellidos o celular..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            />
           </div>
         </div>
+
+        {/* Estado */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Estado
+          </label>
+          <select
+            value={localFilters.estado || ''}
+            onChange={(e) => handleFilterChange('estado', e.target.value || undefined)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+          >
+            <option value="">Todos los estados</option>
+            <option value="verificado">Verificados</option>
+            <option value="pendiente">Pendientes</option>
+          </select>
+        </div>
+
+        {/* Es Edil */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Tipo
+          </label>
+          <select
+            value={localFilters.esEdil === true ? 'true' : localFilters.esEdil === false ? 'false' : ''}
+            onChange={(e) => handleFilterChange('esEdil', e.target.value === '' ? undefined : e.target.value === 'true')}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+          >
+            <option value="">Todos</option>
+            <option value="true">Solo Ediles</option>
+            <option value="false">Solo Votantes</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Toggle filtros avanzados */}
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          <FunnelIcon className="w-4 h-4 mr-2" />
+          Filtros avanzados
+          {getActiveFiltersCount() > 0 && (
+            <span className="ml-2 bg-primary-100 text-primary-800 text-xs font-medium px-2 py-0.5 rounded-full">
+              {getActiveFiltersCount()}
+            </span>
+          )}
+        </button>
+
+        {getActiveFiltersCount() > 0 && (
+          <button
+            onClick={handleClearFilters}
+            className="flex items-center text-sm text-red-600 hover:text-red-700 transition-colors"
+          >
+            <XMarkIcon className="w-4 h-4 mr-1" />
+            Limpiar filtros
+          </button>
+        )}
       </div>
 
       {/* Filtros avanzados */}
       {showAdvanced && (
-        <div className="p-4 bg-gray-50 border-b border-gray-100">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Líder */}
+        <div className="border-t border-gray-200 pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
+            {/* Barrio */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                <UserIcon className="w-4 h-4 inline mr-1" />
-                Líder Asignado
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                <MapPinIcon className="w-4 h-4 mr-1" />
+                Barrio
               </label>
               <select
-                value={filters.liderId || ''}
-                onChange={(e) => handleFilterChange('liderId', e.target.value ? parseInt(e.target.value) : undefined)}
+                value={localFilters.barrioVive || ''}
+                onChange={(e) => handleFilterChange('barrioVive', e.target.value || undefined)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
-                <option value="">Todos los líderes</option>
-                {lideres.map(lider => (
-                  <option key={lider.id} value={lider.id}>{lider.nombre}</option>
+                <option value="">Todos los barrios</option>
+                {barrios.map(barrio => (
+                  <option key={barrio} value={barrio}>{barrio}</option>
                 ))}
               </select>
             </div>
 
-            {/* Grupo */}
+            {/* Municipio de votación */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                <UserIcon className="w-4 h-4 inline mr-1" />
-                Grupo
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Municipio votación
               </label>
               <select
-                value={filters.grupoId || ''}
-                onChange={(e) => handleFilterChange('grupoId', e.target.value ? parseInt(e.target.value) : undefined)}
+                value={localFilters.municipioVotacion || ''}
+                onChange={(e) => handleFilterChange('municipioVotacion', e.target.value || undefined)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
-                <option value="">Todos los grupos</option>
-                {grupos.map(grupo => (
-                  <option key={grupo.id} value={grupo.id}>{grupo.nombre}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Género */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Género
-              </label>
-              <select
-                value={filters.genero || ''}
-                onChange={(e) => handleFilterChange('genero', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="">Todos</option>
-                <option value="M">Masculino</option>
-                <option value="F">Femenino</option>
-                <option value="Otro">Otro</option>
-              </select>
-            </div>
-
-            {/* Rango de Edad */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Rango de Edad
-              </label>
-              <select
-                value={filters.rangoEdad || ''}
-                onChange={(e) => handleFilterChange('rangoEdad', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="">Todas las edades</option>
-                {rangosEdad.map(rango => (
-                  <option key={rango} value={rango}>{rango} años</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Municipio de Votación */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                <MapPinIcon className="w-4 h-4 inline mr-1" />
-                Municipio de Votación
-              </label>
-              <select
-                value={filters.municipioVotacion || ''}
-                onChange={(e) => handleFilterChange('municipioVotacion', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="">Todos</option>
+                <option value="">Todos los municipios</option>
                 {municipios.map(municipio => (
                   <option key={municipio} value={municipio}>{municipio}</option>
                 ))}
               </select>
             </div>
 
-            {/* Estado de Actualización */}
+            {/* Género */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Estado de Datos
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Género
               </label>
               <select
-                value={filters.actualizado?.toString() || ''}
-                onChange={(e) => handleFilterChange('actualizado', e.target.value === 'true')}
+                value={localFilters.genero || ''}
+                onChange={(e) => handleFilterChange('genero', e.target.value || undefined)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
-                <option value="">Todos</option>
-                <option value="true">Actualizados</option>
-                <option value="false">Desactualizados</option>
+                <option value="">Todos los géneros</option>
+                <option value="M">Masculino</option>
+                <option value="F">Femenino</option>
+                <option value="Otro">Otro</option>
               </select>
             </div>
 
-            {/* Fecha Desde */}
+            {/* Rango de edad */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                <CalendarIcon className="w-4 h-4 inline mr-1" />
-                Desde
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Rango de edad
+              </label>
+              <select
+                value={localFilters.rangoEdad || ''}
+                onChange={(e) => handleFilterChange('rangoEdad', e.target.value || undefined)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="">Todas las edades</option>
+                <option value="18-24">18-24 años</option>
+                <option value="25-34">25-34 años</option>
+                <option value="35-44">35-44 años</option>
+                <option value="45-54">45-54 años</option>
+                <option value="55-64">55-64 años</option>
+                <option value="65+">65+ años</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Filtros de fecha */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                <CalendarDaysIcon className="w-4 h-4 mr-1" />
+                Fecha desde
               </label>
               <input
                 type="date"
-                value={filters.fechaDesde ? filters.fechaDesde.toISOString().split('T')[0] : ''}
+                value={localFilters.fechaDesde ? new Date(localFilters.fechaDesde).toISOString().split('T')[0] : ''}
                 onChange={(e) => handleFilterChange('fechaDesde', e.target.value ? new Date(e.target.value) : undefined)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
 
-            {/* Fecha Hasta */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                <CalendarIcon className="w-4 h-4 inline mr-1" />
-                Hasta
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Fecha hasta
               </label>
               <input
                 type="date"
-                value={filters.fechaHasta ? filters.fechaHasta.toISOString().split('T')[0] : ''}
+                value={localFilters.fechaHasta ? new Date(localFilters.fechaHasta).toISOString().split('T')[0] : ''}
                 onChange={(e) => handleFilterChange('fechaHasta', e.target.value ? new Date(e.target.value) : undefined)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Filtros activos */}
-      {activeFiltersCount > 0 && (
-        <div className="p-3 bg-blue-50 border-b border-blue-100">
-          <div className="flex items-center flex-wrap gap-2">
-            <span className="text-sm text-blue-700 font-medium">Filtros activos:</span>
-            {Object.entries(filters).map(([key, value]) => {
-              if (value === undefined || value === '' || value === null) return null;
-              
-              let displayValue = String(value);
-              let displayKey = key;
-              
-              // Personalizar nombres de campos
-              const fieldNames: Record<string, string> = {
-                buscar: 'Búsqueda',
-                estado: 'Estado',
-                barrioVive: 'Barrio',
-                esEdil: 'Tipo',
-                genero: 'Género',
-                rangoEdad: 'Edad',
-                municipioVotacion: 'Municipio',
-                actualizado: 'Actualizado'
-              };
-              
-              displayKey = fieldNames[key] || key;
-              
-              if (key === 'esEdil') {
-                displayValue = value ? 'Ediles' : 'Planillados';
-              }
-              
-              return (
-                <span
-                  key={key}
-                  className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                >
-                  {displayKey}: {displayValue}
-                  <button
-                    onClick={() => handleFilterChange(key as keyof PlanilladoFiltersDto, undefined)}
-                    className="ml-1 text-blue-600 hover:text-blue-800"
-                  >
-                    <XMarkIcon className="w-3 h-3" />
-                  </button>
-                </span>
-              );
-            })}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Estado de actualización
+              </label>
+              <select
+                value={localFilters.actualizado === true ? 'true' : localFilters.actualizado === false ? 'false' : ''}
+                onChange={(e) => handleFilterChange('actualizado', e.target.value === '' ? undefined : e.target.value === 'true')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="">Todos</option>
+                <option value="true">Actualizados</option>
+                <option value="false">No actualizados</option>
+              </select>
+            </div>
           </div>
+
+          {/* Resumen de filtros activos */}
+          {getActiveFiltersCount() > 0 && (
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-3">
+              <p className="text-sm text-primary-700 font-medium mb-2">
+                Filtros activos ({getActiveFiltersCount()}):
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(localFilters).map(([key, value]) => {
+                  if (value === undefined || value === '' || value === null) return null;
+                  
+                  let displayValue = String(value);
+                  let displayKey = key;
+
+                  // Formatear nombres de campos
+                  const fieldNames: Record<string, string> = {
+                    buscar: 'Búsqueda',
+                    estado: 'Estado',
+                    barrioVive: 'Barrio',
+                    municipioVotacion: 'Municipio',
+                    genero: 'Género',
+                    rangoEdad: 'Edad',
+                    esEdil: 'Tipo',
+                    actualizado: 'Actualización',
+                    fechaDesde: 'Desde',
+                    fechaHasta: 'Hasta'
+                  };
+
+                  displayKey = fieldNames[key] || key;
+
+                  // Formatear valores especiales
+                  if (key === 'esEdil') {
+                    displayValue = value ? 'Ediles' : 'Votantes';
+                  } else if (key === 'actualizado') {
+                    displayValue = value ? 'Actualizados' : 'No actualizados';
+                  } else if (key === 'fechaDesde' || key === 'fechaHasta') {
+                    displayValue = new Date(value as Date).toLocaleDateString('es-CO');
+                  }
+
+                  return (
+                    <span
+                      key={key}
+                      className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-primary-100 text-primary-800"
+                    >
+                      {displayKey}: {displayValue}
+                      <button
+                        onClick={() => handleFilterChange(key as keyof PlanilladoFiltersDto, undefined)}
+                        className="ml-1 text-primary-600 hover:text-primary-800"
+                      >
+                        <XMarkIcon className="w-3 h-3" />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
