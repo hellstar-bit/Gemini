@@ -69,70 +69,86 @@ export class PlanilladosService {
   }
 
   // ✅ Obtener estadísticas
-  async getStats(filters?: PlanilladoFiltersDto): Promise<PlanilladosStatsResponseDto> {
-    const queryBuilder = this.createQueryBuilder(filters || {});
+  async getStats(filters: PlanilladoFiltersDto): Promise<PlanilladosStatsResponseDto> {
+  const queryBuilder = this.createQueryBuilder(filters || {});
 
-    // Total y estados
-    const total = await queryBuilder.getCount();
-    const verificados = await this.createQueryBuilder({ ...filters, estado: 'verificado' }).getCount();
-    const pendientes = await this.createQueryBuilder({ ...filters, estado: 'pendiente' }).getCount();
-    const ediles = await this.createQueryBuilder({ ...filters, esEdil: true }).getCount();
+  // Total y estados
+  const total = await queryBuilder.getCount();
+  const verificados = await this.createQueryBuilder({ ...filters, estado: 'verificado' }).getCount();
+  const pendientes = await this.createQueryBuilder({ ...filters, estado: 'pendiente' }).getCount();
+  const ediles = await this.createQueryBuilder({ ...filters, esEdil: true }).getCount();
 
-    // Estadísticas por barrio
-    const porBarrioQuery = this.planilladoRepository
-      .createQueryBuilder('p')
-      .select('p.barrioVive as barrio, COUNT(*) as cantidad')
-      .where('p.barrioVive IS NOT NULL')
-      .groupBy('p.barrioVive')
-      .orderBy('cantidad', 'DESC')
-      .limit(10);
+  // Estadísticas por barrio
+  const porBarrioQuery = this.planilladoRepository
+    .createQueryBuilder('p')
+    .select('p.barrioVive as barrio, COUNT(*) as cantidad')
+    .where('p.barrioVive IS NOT NULL')
+    .groupBy('p.barrioVive')
+    .orderBy('cantidad', 'DESC')
+    .limit(10);
 
-    const barriosResult = await porBarrioQuery.getRawMany();
-    const porBarrio = barriosResult.reduce((acc, item) => {
-      acc[item.barrio] = parseInt(item.cantidad);
-      return acc;
-    }, {});
+  const barriosResult = await porBarrioQuery.getRawMany();
+  const porBarrio = barriosResult.reduce((acc, item) => {
+    acc[item.barrio] = parseInt(item.cantidad);
+    return acc;
+  }, {});
 
-    // Estadísticas por género
-    const porGeneroQuery = this.planilladoRepository
-      .createQueryBuilder('p')
-      .select('p.genero as genero, COUNT(*) as cantidad')
-      .where('p.genero IS NOT NULL')
-      .groupBy('p.genero');
+  // Estadísticas por género
+  const porGeneroQuery = this.planilladoRepository
+    .createQueryBuilder('p')
+    .select('p.genero as genero, COUNT(*) as cantidad')
+    .where('p.genero IS NOT NULL')
+    .groupBy('p.genero');
 
-    const generoResult = await porGeneroQuery.getRawMany();
-    const porGenero = generoResult.reduce((acc, item) => {
-      acc[item.genero] = parseInt(item.cantidad);
-      return acc;
-    }, {});
+  const generoResult = await porGeneroQuery.getRawMany();
+  const porGenero = generoResult.reduce((acc, item) => {
+    acc[item.genero] = parseInt(item.cantidad);
+    return acc;
+  }, {});
 
-    // Estadísticas por edad (calculadas)
-    const today = new Date();
-    const porEdad = {
-      '18-24': 0,
-      '25-34': 0,
-      '35-44': 0,
-      '45-54': 0,
-      '55-64': 0,
-      '65+': 0,
-    };
+  // Estadísticas por edad (calculadas) - SECCIÓN CORREGIDA
+  const today = new Date();
+  const porEdad = {
+    '18-24': 0,
+    '25-34': 0,
+    '35-44': 0,
+    '45-54': 0,
+    '55-64': 0,
+    '65+': 0,
+  };
 
-    const planilladosConEdad = await this.planilladoRepository
-      .createQueryBuilder('p')
-      .where('p.fechaNacimiento IS NOT NULL')
-      .getMany();
+  const planilladosConEdad = await this.planilladoRepository
+    .createQueryBuilder('p')
+    .where('p.fechaNacimiento IS NOT NULL')
+    .getMany();
 
-    planilladosConEdad.forEach(p => {
-      if (p.fechaNacimiento) {
-        const edad = today.getFullYear() - p.fechaNacimiento.getFullYear();
-        if (edad >= 18 && edad <= 24) porEdad['18-24']++;
-        else if (edad <= 34) porEdad['25-34']++;
-        else if (edad <= 44) porEdad['35-44']++;
-        else if (edad <= 54) porEdad['45-54']++;
-        else if (edad <= 64) porEdad['55-64']++;
-        else if (edad >= 65) porEdad['65+']++;
+  planilladosConEdad.forEach(p => {
+    if (p.fechaNacimiento) {
+      // ✅ CORRECCIÓN: Asegurar que fechaNacimiento sea un objeto Date
+      const fechaNacimiento = p.fechaNacimiento instanceof Date 
+        ? p.fechaNacimiento 
+        : new Date(p.fechaNacimiento);
+      
+      // ✅ Verificar que la fecha sea válida
+      if (!isNaN(fechaNacimiento.getTime())) {
+        const edad = today.getFullYear() - fechaNacimiento.getFullYear();
+        const monthDiff = today.getMonth() - fechaNacimiento.getMonth();
+        
+        // Ajustar la edad si no ha pasado el cumpleaños este año
+        const edadAjustada = (monthDiff < 0 || (monthDiff === 0 && today.getDate() < fechaNacimiento.getDate())) 
+          ? edad - 1 
+          : edad;
+        
+        // Clasificar por rango de edad
+        if (edadAjustada >= 18 && edadAjustada <= 24) porEdad['18-24']++;
+        else if (edadAjustada <= 34) porEdad['25-34']++;
+        else if (edadAjustada <= 44) porEdad['35-44']++;
+        else if (edadAjustada <= 54) porEdad['45-54']++;
+        else if (edadAjustada <= 64) porEdad['55-64']++;
+        else if (edadAjustada >= 65) porEdad['65+']++;
       }
-    });
+    }
+  });
 
     // Estadísticas por líder
     const porLiderQuery = this.planilladoRepository
