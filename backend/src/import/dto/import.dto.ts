@@ -1,4 +1,4 @@
-// backend/src/import/dto/import.dto.ts
+// backend/src/import/dto/import.dto.ts - ACTUALIZADO CON PLANILLADOS
 
 export class ImportPreviewDto {
   data: any[];
@@ -11,7 +11,7 @@ export class ImportPreviewDto {
 
 export class ImportMappingDto {
   fileName: string;
-  entityType: 'voters' | 'leaders' | 'candidates' | 'groups';
+  entityType: 'voters' | 'leaders' | 'candidates' | 'groups' | 'planillados'; // ✅ AGREGADO planillados
   fieldMappings: Record<string, string>; // { csvColumn: entityField }
   previewData: any[];
 }
@@ -34,6 +34,34 @@ export class ImportErrorDto {
   severity: 'error' | 'warning';
 }
 
+// ✅ NUEVO - DTO para importar planillados
+export class BulkImportPlanilladoDto {
+  cedula: string;
+  nombres: string;
+  apellidos: string;
+  celular?: string;
+  direccion?: string;
+  barrioVive?: string;
+  fechaExpedicion?: string; // Formato DD/MM/YYYY en string, se convierte a Date
+  
+  // Datos de votación
+  departamentoVotacion?: string;
+  municipioVotacion?: string;
+  direccionVotacion?: string;
+  zonaPuesto?: string;
+  mesa?: string;
+  
+  // Relaciones
+  liderCedula?: string; // Para asociar con líder por cédula
+  grupoNombre?: string; // Para asociar con grupo por nombre
+  
+  // Datos adicionales
+  fechaNacimiento?: string;
+  genero?: 'M' | 'F' | 'Otro';
+  notas?: string;
+}
+
+// DTOs existentes se mantienen igual
 export class BulkImportVoterDto {
   cedula: string;
   firstName: string;

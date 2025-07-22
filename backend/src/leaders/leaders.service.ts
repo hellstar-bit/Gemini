@@ -4,8 +4,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder, Like, In } from 'typeorm';
 import { Leader } from './entities/leader.entity';
 import { Group } from '../groups/entities/group.entity';
-import { Voter } from '../voters/entities/voter.entity';
 import { CreateLeaderDto, UpdateLeaderDto, LeaderFiltersDto, LeaderStatsDto } from './dto/leader.dto';
+import { Planillado } from '../planillados/entities/planillado.entity';  // ✅ Agregar
 
 interface PaginatedResponse<T> {
   data: T[];
@@ -22,12 +22,13 @@ interface PaginatedResponse<T> {
 @Injectable()
 export class LeadersService {
   constructor(
+    @InjectRepository(Planillado)  // ✅ Cambiar Voter por Planillado
+    private planilladoRepository: Repository<Planillado>,
     @InjectRepository(Leader)
     private leaderRepository: Repository<Leader>,
     @InjectRepository(Group)
     private groupRepository: Repository<Group>,
-    @InjectRepository(Voter)
-    private voterRepository: Repository<Voter>,
+   
   ) {}
 
   // ✅ Obtener todos los líderes con filtros y paginación
@@ -236,15 +237,15 @@ export class LeadersService {
     const leader = await this.findOne(id);
 
     // Verificar si tiene votantes asignados
-    const votersCount = await this.voterRepository.count({
-      where: { leaderId: id },
+    const planilladosCount = await this.planilladoRepository.count({
+    where: { liderId: id },  // ✅ Cambiar leaderId por liderId
     });
 
-    if (votersCount > 0) {
-      throw new BadRequestException(
-        `No se puede eliminar el líder porque tiene ${votersCount} votantes asignados. Reasigne los votantes primero.`
-      );
-    }
+    if (planilladosCount > 0) {
+  throw new BadRequestException(
+    `No se puede eliminar el líder porque tiene ${planilladosCount} planillados asignados. Reasigne los planillados primero.`
+  );
+}
 
     await this.leaderRepository.remove(leader);
   }

@@ -5,7 +5,7 @@ import { store } from './store';
 import { AuthPage } from './pages/AuthPage';
 import { Dashboard } from './pages/Dashboard';
 import { ComingSoon } from './pages/ComingSoon';
-import { ImportPage } from './pages/operations/ImportPage';
+import  ImportPage  from './pages/operations/ImportPage';
 import { PlanilladosPage } from './pages/campaign/PlanilladosPage';
 import { LeadersPage } from './pages/campaign/LeadersPage';
 import { CandidatesPage } from './pages/campaign/CandidatesPage'; // ✅ NUEVO

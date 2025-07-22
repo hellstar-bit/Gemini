@@ -6,7 +6,6 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
-import { VotersModule } from './voters/voters.module';
 import { LeadersModule } from './leaders/leaders.module';
 import { CandidatesModule } from './candidates/candidates.module';
 import { GroupsModule } from './groups/groups.module';
@@ -15,7 +14,6 @@ import { PlanilladosModule } from './planillados/planillados.module'; // ✅ NUE
 
 // Entidades
 import { User } from './users/entities/user.entity';
-import { Voter } from './voters/entities/voter.entity';
 import { Leader } from './leaders/entities/leader.entity';
 import { Candidate } from './candidates/entities/candidate.entity';
 import { Group } from './groups/entities/group.entity';
@@ -41,7 +39,6 @@ import { Planillado } from './planillados/entities/planillado.entity'; // ✅ NU
         database: configService.get('DB_NAME'),
         entities: [
           User, 
-          Voter, 
           Leader, 
           Candidate, 
           Group,
@@ -56,7 +53,6 @@ import { Planillado } from './planillados/entities/planillado.entity'; // ✅ NU
     // Módulos de la aplicación
     AuthModule,
     UsersModule,
-    VotersModule,
     LeadersModule,
     CandidatesModule,
     GroupsModule,

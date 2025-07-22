@@ -1,4 +1,5 @@
-// frontend/src/utils/templateDownload.ts - UTILIDADES PARA PLANTILLAS
+// frontend/src/utils/templateDownload.ts - ACTUALIZADO CON PLANILLADOS
+
 import * as XLSX from 'xlsx';
 
 export interface TemplateConfig {
@@ -9,8 +10,113 @@ export interface TemplateConfig {
   instructions: string[];
 }
 
-// Configuraciones de plantillas para cada tipo de entidad
+// ✅ CONFIGURACIONES ACTUALIZADAS CON PLANILLADOS
 export const TEMPLATE_CONFIGS: Record<string, TemplateConfig> = {
+  planillados: {
+    fileName: 'Plantilla_Planillados_GEMINI.xlsx',
+    sheetName: 'Planillados',
+    headers: [
+      'cédula',
+      'nombres', 
+      'apellidos',
+      'celular',
+      'dirección',
+      'barrio donde vive',
+      'fecha de expedición',
+      'municipio de votación',
+      'zona y puesto',
+      'mesa'
+    ],
+    sampleData: [
+      {
+        'cédula': '12345678',
+        'nombres': 'Juan Carlos',
+        'apellidos': 'Pérez García',
+        'celular': '3001234567',
+        'dirección': 'Calle 123 #45-67',
+        'barrio donde vive': 'El Prado',
+        'fecha de expedición': '15/05/2010',
+        'municipio de votación': 'Barranquilla',
+        'zona y puesto': 'Zona 1 - Puesto 5',
+        'mesa': '001'
+      },
+      {
+        'cédula': '87654321',
+        'nombres': 'María Fernanda',
+        'apellidos': 'González López',
+        'celular': '3009876543',
+        'dirección': 'Carrera 50 #80-25',
+        'barrio donde vive': 'La Concepción',
+        'fecha de expedición': '20/03/2008',
+        'municipio de votación': 'Soledad',
+        'zona y puesto': 'Zona 2 - Puesto 3',
+        'mesa': '025'
+      },
+      {
+        'cédula': '11223344',
+        'nombres': 'Carlos Alberto',
+        'apellidos': 'Rodríguez Martínez',
+        'celular': '3151122334',
+        'dirección': 'Avenida 15 #30-45',
+        'barrio donde vive': 'Centro',
+        'fecha de expedición': '10/12/2015',
+        'municipio de votación': 'Malambo',
+        'zona y puesto': 'Zona 3 - Puesto 1',
+        'mesa': '050'
+      }
+    ],
+    instructions: [
+      '🎯 PLANTILLA PARA IMPORTAR PLANILLADOS EN GEMINI',
+      '',
+      '📋 CAMPOS OBLIGATORIOS (marcados con *):',
+      '   ✓ cédula*: Número de identificación sin puntos ni espacios',
+      '   ✓ nombres*: Nombres completos de la persona',
+      '   ✓ apellidos*: Apellidos completos de la persona',
+      '',
+      '📝 CAMPOS OPCIONALES IMPORTANTES:',
+      '   • celular: Número de teléfono celular (formato: 3001234567)',
+      '   • dirección: Dirección completa de residencia',
+      '   • barrio donde vive: Barrio o sector donde reside',
+      '   • fecha de expedición: Fecha cuando se expidió la cédula',
+      '   • municipio de votación: Municipio donde está registrado para votar',
+      '   • zona y puesto: Zona y puesto de votación asignado',
+      '   • mesa: Número de mesa de votación',
+      '',
+      '📐 FORMATOS IMPORTANTES:',
+      '   • Cédula: Solo números (ejemplo: 12345678)',
+      '   • Fechas: DD/MM/YYYY (ejemplo: 15/05/2010)',
+      '   • Celular: Con código de área (ejemplo: 3001234567)',
+      '   • Mesa: Número con ceros a la izquierda (ejemplo: 001, 025)',
+      '',
+      '🗳️ INFORMACIÓN ESPECÍFICA DE PLANILLADOS:',
+      '   • Los planillados son personas registradas en las listas electorales',
+      '   • Pueden incluir datos de votación como municipio, zona, puesto y mesa',
+      '   • El sistema validará automáticamente duplicados por cédula',
+      '   • Se pueden asociar con líderes existentes en el sistema',
+      '',
+      '💡 CONSEJOS PARA EVITAR ERRORES:',
+      '   • No dejes filas vacías entre datos',
+      '   • No modifiques los nombres de las columnas',
+      '   • Revisa que no haya cédulas duplicadas',
+      '   • Máximo 10,000 registros por archivo',
+      '   • Usa formato Excel (.xlsx) para mejor compatibilidad',
+      '   • Verifica que los datos de votación sean correctos',
+      '',
+      '🚀 PROCESO DE IMPORTACIÓN:',
+      '   1. Llena esta plantilla con tus datos de planillados',
+      '   2. Guarda el archivo como Excel (.xlsx)',
+      '   3. Súbelo en la página de importación de GEMINI',
+      '   4. Selecciona "Planillados" como tipo de datos',
+      '   5. El sistema detectará automáticamente los campos',
+      '   6. Revisa el mapeo y confirma la importación',
+      '   7. Los datos se guardarán en la tabla de planillados',
+      '',
+      '❓ ¿NECESITAS AYUDA?',
+      '   • Contacta al administrador del sistema',
+      '   • Revisa la documentación en el manual de usuario',
+      '   • Asegúrate de tener permisos de importación'
+    ]
+  },
   voters: {
     fileName: 'Plantilla_Votantes_GEMINI.xlsx',
     sheetName: 'Votantes',
@@ -21,7 +127,7 @@ export const TEMPLATE_CONFIGS: Record<string, TemplateConfig> = {
       'celular',
       'dirección',
       'barrio',
-      'fecha de expedición'
+      'municipio'
     ],
     sampleData: [
       {
@@ -31,7 +137,7 @@ export const TEMPLATE_CONFIGS: Record<string, TemplateConfig> = {
         'celular': '3001234567',
         'dirección': 'Calle 123 #45-67',
         'barrio': 'El Prado',
-        'fecha de expedición': '15/05/2010'
+        'municipio': 'Barranquilla'
       },
       {
         'cédula': '87654321',
@@ -40,55 +146,24 @@ export const TEMPLATE_CONFIGS: Record<string, TemplateConfig> = {
         'celular': '3009876543',
         'dirección': 'Carrera 50 #80-25',
         'barrio': 'La Concepción',
-        'fecha de expedición': '20/03/2008'
-      },
-      {
-        'cédula': '11223344',
-        'nombres': 'Carlos Alberto',
-        'apellidos': 'Rodríguez Martínez',
-        'celular': '3151122334',
-        'dirección': 'Avenida 15 #30-45',
-        'barrio': 'Centro',
-        'fecha de expedición': '10/12/2015'
+        'municipio': 'Soledad'
       }
     ],
     instructions: [
-      '🎯 PLANTILLA PARA IMPORTAR VOTANTES EN GEMINI',
+      '🎯 PLANTILLA PARA IMPORTAR VOTANTES EN GEMINI (LEGACY)',
       '',
-      '📋 CAMPOS OBLIGATORIOS (marcados con *):',
-      '   ✓ cédula: Número de identificación sin puntos ni espacios',
-      '   ✓ nombres: Nombres completos de la persona',
-      '   ✓ apellidos: Apellidos completos de la persona',
+      '⚠️ NOTA: Esta plantilla es para el sistema legacy de votantes.',
+      '   Para datos electorales actuales, usa la plantilla de Planillados.',
+      '',
+      '📋 CAMPOS OBLIGATORIOS:',
+      '   ✓ cédula: Número de identificación',
+      '   ✓ nombres: Nombres completos',
+      '   ✓ apellidos: Apellidos completos',
       '',
       '📝 CAMPOS OPCIONALES:',
-      '   • celular: Número de teléfono celular',
-      '   • dirección: Dirección completa de residencia',
-      '   • barrio: Barrio o sector donde vive',
-      '   • fecha de expedición: Fecha cuando se expidió la cédula',
+      '   • celular, dirección, barrio, municipio',
       '',
-      '📐 FORMATOS IMPORTANTES:',
-      '   • Cédula: Solo números (ejemplo: 12345678)',
-      '   • Fechas: DD/MM/YYYY (ejemplo: 15/05/2010)',
-      '   • Celular: Con código de área (ejemplo: 3001234567)',
-      '',
-      '💡 CONSEJOS PARA EVITAR ERRORES:',
-      '   • No dejes filas vacías entre datos',
-      '   • No modifiques los nombres de las columnas',
-      '   • Revisa que no haya cédulas duplicadas',
-      '   • Máximo 10,000 registros por archivo',
-      '   • Usa formato Excel (.xlsx) para mejor compatibilidad',
-      '',
-      '🚀 PROCESO DE IMPORTACIÓN:',
-      '   1. Llena esta plantilla con tus datos',
-      '   2. Guarda el archivo como Excel (.xlsx)',
-      '   3. Súbelo en la página de importación de GEMINI',
-      '   4. El sistema detectará automáticamente los campos',
-      '   5. Revisa el mapeo y confirma la importación',
-      '',
-      '❓ ¿NECESITAS AYUDA?',
-      '   • Contacta al soporte técnico de GEMINI',
-      '   • Revisa la documentación en línea',
-      '   • Usa los ejemplos incluidos como guía'
+      '📐 FORMATOS: DD/MM/YYYY para fechas, solo números para cédula'
     ]
   },
   leaders: {
@@ -102,132 +177,74 @@ export const TEMPLATE_CONFIGS: Record<string, TemplateConfig> = {
       'email',
       'dirección',
       'barrio',
-      'meta de votantes'
+      'municipio',
+      'meta de votantes',
+      'grupo'
     ],
     sampleData: [
       {
-        'cédula': '11223344',
-        'nombres': 'Carlos Alberto',
-        'apellidos': 'Rodríguez Martínez',
-        'celular': '3001122334',
-        'email': 'carlos.rodriguez@email.com',
-        'dirección': 'Carrera 50 #80-25',
-        'barrio': 'La Concepción',
-        'meta de votantes': '50'
-      },
-      {
-        'cédula': '55667788',
+        'cédula': '98765432',
         'nombres': 'Ana Patricia',
-        'apellidos': 'González López',
-        'celular': '3009988776',
-        'email': 'ana.gonzalez@email.com',
-        'dirección': 'Calle 70 #45-30',
-        'barrio': 'El Prado',
-        'meta de votantes': '75'
+        'apellidos': 'Martínez Silva',
+        'celular': '3007654321',
+        'email': 'ana.martinez@email.com',
+        'dirección': 'Calle 45 #23-67',
+        'barrio': 'Las Flores',
+        'municipio': 'Barranquilla',
+        'meta de votantes': '500',
+        'grupo': 'Grupo Norte'
       }
     ],
     instructions: [
-      '👤 PLANTILLA PARA IMPORTAR LÍDERES EN GEMINI',
+      '🎯 PLANTILLA PARA IMPORTAR LÍDERES EN GEMINI',
+      '',
+      '👥 Los líderes son coordinadores que gestionan planillados y votantes',
       '',
       '📋 CAMPOS OBLIGATORIOS:',
       '   ✓ cédula, nombres, apellidos',
       '',
-      '📝 CAMPOS RECOMENDADOS:',
-      '   • celular, email, meta de votantes',
-      '',
-      '📐 FORMATOS ESPECIALES:',
-      '   • Meta de votantes: Solo números (ejemplo: 50)',
-      '   • Email: formato válido (ejemplo@dominio.com)',
-      '',
-      '💡 NOTA: Los líderes pueden gestionar votantes y tienen metas específicas.'
-    ]
-  },
-  candidates: {
-    fileName: 'Plantilla_Candidatos_GEMINI.xlsx',
-    sheetName: 'Candidatos',
-    headers: [
-      'nombre completo',
-      'email',
-      'celular',
-      'cargo',
-      'partido político',
-      'meta de votos'
-    ],
-    sampleData: [
-      {
-        'nombre completo': 'Ana Patricia Mendoza Ruiz',
-        'email': 'ana.mendoza@campaña.com',
-        'celular': '3151234567',
-        'cargo': 'Alcaldesa',
-        'partido político': 'Partido Progresista',
-        'meta de votos': '50000'
-      },
-      {
-        'nombre completo': 'Carlos Alberto Rodríguez',
-        'email': 'carlos.rodriguez@campaña.com',
-        'celular': '3129876543',
-        'cargo': 'Concejal',
-        'partido político': 'Partido Democrático',
-        'meta de votos': '15000'
-      }
-    ],
-    instructions: [
-      '🎖️ PLANTILLA PARA IMPORTAR CANDIDATOS EN GEMINI',
-      '',
-      '📋 CAMPOS OBLIGATORIOS:',
-      '   ✓ nombre completo, email',
-      '',
-      '📐 FORMATOS:',
-      '   • Meta de votos: Solo números (ejemplo: 50000)',
-      '   • Email: Debe ser válido y único'
-    ]
-  },
-  groups: {
-    fileName: 'Plantilla_Grupos_GEMINI.xlsx',
-    sheetName: 'Grupos',
-    headers: [
-      'nombre del grupo',
-      'descripción',
-      'zona geográfica',
-      'meta de votantes'
-    ],
-    sampleData: [
-      {
-        'nombre del grupo': 'Coordinación Norte',
-        'descripción': 'Grupo de trabajo zona norte de la ciudad',
-        'zona geográfica': 'Norte',
-        'meta de votantes': '500'
-      },
-      {
-        'nombre del grupo': 'Equipo Centro',
-        'descripción': 'Coordinación del centro histórico',
-        'zona geográfica': 'Centro',
-        'meta de votantes': '300'
-      }
-    ],
-    instructions: [
-      '🏛️ PLANTILLA PARA IMPORTAR GRUPOS EN GEMINI',
-      '',
-      '📋 CAMPO OBLIGATORIO:',
-      '   ✓ nombre del grupo',
-      '',
-      '📐 FORMATOS:',
-      '   • Meta de votantes: Solo números (ejemplo: 500)',
-      '   • Zona geográfica: Texto descriptivo'
+      '📝 CAMPOS OPCIONALES:',
+      '   • celular, email, dirección, barrio, municipio',
+      '   • meta de votantes: número objetivo de personas a gestionar',
+      '   • grupo: nombre del grupo al que pertenece'
     ]
   }
 };
 
-// Función principal para descargar plantilla
-export function downloadExcelTemplate(entityType: string): void {
+// ✅ FUNCIÓN PARA OBTENER ANCHO DE COLUMNA
+function getColumnWidth(header: string): number {
+  const widths: { [key: string]: number } = {
+    'cédula': 12,
+    'nombres': 20,
+    'apellidos': 20,
+    'celular': 15,
+    'dirección': 25,
+    'barrio donde vive': 18,
+    'fecha de expedición': 18,
+    'municipio de votación': 20,
+    'zona y puesto': 18,
+    'mesa': 8,
+    'email': 25,
+    'meta de votantes': 15,
+    'grupo': 15
+  };
+  
+  return widths[header] || Math.max(header.length + 2, 10);
+}
+
+// ✅ FUNCIÓN PRINCIPAL PARA DESCARGAR PLANTILLA
+export function downloadTemplate(entityType: string): void {
   const config = TEMPLATE_CONFIGS[entityType];
   
   if (!config) {
-    console.error(`No existe configuración de plantilla para: ${entityType}`);
+    console.error(`❌ No existe plantilla para el tipo: ${entityType}`);
+    alert(`No se encontró plantilla para ${entityType}`);
     return;
   }
 
   try {
+    console.log(`📥 Generando plantilla para: ${entityType}`);
+    
     // Crear workbook
     const workbook = XLSX.utils.book_new();
     
@@ -242,7 +259,7 @@ export function downloadExcelTemplate(entityType: string): void {
     
     // Crear worksheet de instrucciones
     const instructionsData = config.instructions.map(instruction => ({ 
-      'INSTRUCCIONES': instruction 
+      'INSTRUCCIONES DE USO': instruction 
     }));
     const instructionsWorksheet = XLSX.utils.json_to_sheet(instructionsData);
     instructionsWorksheet['!cols'] = [{ wch: 80 }];
@@ -257,109 +274,243 @@ export function downloadExcelTemplate(entityType: string): void {
     console.log(`✅ Plantilla descargada: ${config.fileName}`);
     
   } catch (error) {
-    console.error('Error descargando plantilla:', error);
+    console.error('❌ Error descargando plantilla:', error);
     alert('Error al generar la plantilla. Por favor intenta nuevamente.');
   }
 }
 
-// Función auxiliar para determinar ancho de columna
-function getColumnWidth(header: string): number {
-  const widthMap: Record<string, number> = {
-    'cédula': 12,
-    'nombres': 20,
-    'apellidos': 20,
-    'nombre completo': 25,
-    'celular': 12,
-    'dirección': 30,
-    'email': 25,
-    'fecha de expedición': 15,
-    'barrio': 15,
-    'cargo': 15,
-    'partido político': 20,
-    'meta de votantes': 12,
-    'meta de votos': 12,
-    'zona geográfica': 15,
-    'descripción': 40,
-    'nombre del grupo': 20
-  };
-  
-  return widthMap[header.toLowerCase()] || 15;
+// ✅ FUNCIÓN PARA OBTENER LISTA DE PLANTILLAS DISPONIBLES
+export function getAvailableTemplates(): Array<{key: string, label: string, description: string}> {
+  return [
+    {
+      key: 'planillados',
+      label: 'Planillados',
+      description: 'Personas registradas en las planillas electorales'
+    },
+    {
+      key: 'voters',
+      label: 'Votantes (Legacy)',
+      description: 'Base de datos de votantes tradicional'
+    },
+    {
+      key: 'leaders',
+      label: 'Líderes',
+      description: 'Líderes comunitarios y coordinadores'
+    }
+  ];
 }
 
-// Función para obtener etiqueta amigable del tipo de entidad
-export function getEntityLabel(entityType: string): string {
-  const labels: Record<string, string> = {
-    voters: 'Votantes',
-    leaders: 'Líderes', 
-    candidates: 'Candidatos',
-    groups: 'Grupos'
-  };
-  
-  return labels[entityType] || entityType;
-}
-
-// Función para obtener información sobre la plantilla
-export function getTemplateInfo(entityType: string): { 
-  requiredFields: string[], 
-  optionalFields: string[], 
-  totalSampleRows: number,
-  fileName: string 
+// ✅ FUNCIÓN PARA VALIDAR ESTRUCTURA DE ARCHIVO ANTES DE PROCESAR
+export function validateFileStructure(headers: string[], entityType: string): {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
 } {
   const config = TEMPLATE_CONFIGS[entityType];
-  
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
   if (!config) {
-    return {
-      requiredFields: [],
-      optionalFields: [],
-      totalSampleRows: 0,
-      fileName: ''
-    };
+    errors.push(`Tipo de entidad no válido: ${entityType}`);
+    return { isValid: false, errors, warnings };
   }
 
-  // Determinar campos obligatorios y opcionales según el tipo
-  let requiredFields: string[] = [];
-  let optionalFields: string[] = [];
+  // Verificar headers requeridos para planillados
+  if (entityType === 'planillados') {
+    const requiredHeaders = ['cédula', 'nombres', 'apellidos'];
+    const headerLowerCase = headers.map(h => h.toLowerCase().trim());
 
-  switch (entityType) {
-    case 'voters':
-      requiredFields = ['cédula', 'nombres', 'apellidos'];
-      optionalFields = ['celular', 'dirección', 'barrio', 'fecha de expedición'];
-      break;
-    case 'leaders':
-      requiredFields = ['cédula', 'nombres', 'apellidos'];
-      optionalFields = ['celular', 'email', 'dirección', 'barrio', 'meta de votantes'];
-      break;
-    case 'candidates':
-      requiredFields = ['nombre completo', 'email'];
-      optionalFields = ['celular', 'cargo', 'partido político', 'meta de votos'];
-      break;
-    case 'groups':
-      requiredFields = ['nombre del grupo'];
-      optionalFields = ['descripción', 'zona geográfica', 'meta de votantes'];
-      break;
+    for (const required of requiredHeaders) {
+      const found = headerLowerCase.some(h => 
+        h.includes(required.toLowerCase()) || 
+        (required === 'cédula' && (h.includes('cedula') || h === 'cc'))
+      );
+      
+      if (!found) {
+        errors.push(`Falta el campo requerido: ${required}`);
+      }
+    }
+
+    // Verificar headers opcionales comunes
+    const optionalHeaders = ['celular', 'dirección', 'barrio', 'fecha'];
+    const foundOptional = optionalHeaders.filter(optional =>
+      headerLowerCase.some(h => h.includes(optional.toLowerCase()))
+    );
+
+    if (foundOptional.length === 0) {
+      warnings.push('No se encontraron campos opcionales comunes. Verifica que el archivo tenga el formato correcto.');
+    }
+  }
+
+  // Verificar que no haya headers vacíos
+  const emptyHeaders = headers.filter(h => !h || h.trim() === '');
+  if (emptyHeaders.length > 0) {
+    warnings.push(`Se encontraron ${emptyHeaders.length} columnas sin nombre`);
+  }
+
+  // Verificar duplicados
+  const duplicates = headers.filter((header, index) => 
+    headers.indexOf(header) !== index
+  );
+  if (duplicates.length > 0) {
+    errors.push(`Columnas duplicadas encontradas: ${duplicates.join(', ')}`);
   }
 
   return {
-    requiredFields,
-    optionalFields,
-    totalSampleRows: config.sampleData.length,
-    fileName: config.fileName
+    isValid: errors.length === 0,
+    errors,
+    warnings
   };
 }
 
-// Hook personalizado para usar en componentes React
-export function useTemplateDownload() {
-  const downloadTemplate = (entityType: string) => {
-    downloadExcelTemplate(entityType);
-  };
-
-  const getTemplateDetails = (entityType: string) => {
-    return getTemplateInfo(entityType);
-  };
-
-  return {
-    downloadTemplate,
-    getTemplateDetails,
-    getEntityLabel
-  };
+// ✅ FUNCIÓN PARA GENERAR MAPEO SUGERIDO
+export function generateSuggestedMapping(headers: string[], entityType: string): Record<string, string> {
+  const mappings: Record<string, string> = {};
+  
+  if (entityType === 'planillados') {
+    headers.forEach(header => {
+      const cleanHeader = header.toLowerCase().trim();
+      
+      // Mapeos específicos para planillados
+      if (cleanHeader.includes('cédula') || cleanHeader.includes('cedula') || cleanHeader === 'cc') {
+        mappings[header] = 'cedula';
+      } else if (cleanHeader.includes('nombres') || cleanHeader.includes('nombre')) {
+        mappings[header] = 'nombres';
+      } else if (cleanHeader.includes('apellidos') || cleanHeader.includes('apellido')) {
+        mappings[header] = 'apellidos';
+      } else if (cleanHeader.includes('celular') || cleanHeader.includes('teléfono') || cleanHeader.includes('telefono') || cleanHeader.includes('móvil')) {
+        mappings[header] = 'celular';
+      } else if (cleanHeader.includes('dirección') || cleanHeader.includes('direccion')) {
+        mappings[header] = 'direccion';
+      } else if (cleanHeader.includes('barrio') && cleanHeader.includes('vive')) {
+        mappings[header] = 'barrioVive';
+      } else if (cleanHeader.includes('barrio')) {
+        mappings[header] = 'barrioVive';
+      } else if (cleanHeader.includes('fecha') && cleanHeader.includes('expedición')) {
+        mappings[header] = 'fechaExpedicion';
+      } else if (cleanHeader.includes('municipio') && cleanHeader.includes('votación')) {
+        mappings[header] = 'municipioVotacion';
+      } else if (cleanHeader.includes('zona') && cleanHeader.includes('puesto')) {
+        mappings[header] = 'zonaPuesto';
+      } else if (cleanHeader.includes('mesa')) {
+        mappings[header] = 'mesa';
+      }
+    });
+  } else if (entityType === 'voters') {
+    // Mapeos para voters (legacy)
+    headers.forEach(header => {
+      const cleanHeader = header.toLowerCase().trim();
+      
+      if (cleanHeader.includes('cédula') || cleanHeader.includes('cedula')) {
+        mappings[header] = 'cedula';
+      } else if (cleanHeader.includes('nombres') || cleanHeader.includes('nombre')) {
+        mappings[header] = 'firstName';
+      } else if (cleanHeader.includes('apellidos') || cleanHeader.includes('apellido')) {
+        mappings[header] = 'lastName';
+      } else if (cleanHeader.includes('celular') || cleanHeader.includes('teléfono')) {
+        mappings[header] = 'phone';
+      } else if (cleanHeader.includes('dirección') || cleanHeader.includes('direccion')) {
+        mappings[header] = 'address';
+      } else if (cleanHeader.includes('barrio')) {
+        mappings[header] = 'neighborhood';
+      } else if (cleanHeader.includes('municipio')) {
+        mappings[header] = 'municipality';
+      }
+    });
+  } else if (entityType === 'leaders') {
+    // Mapeos para líderes
+    headers.forEach(header => {
+      const cleanHeader = header.toLowerCase().trim();
+      
+      if (cleanHeader.includes('cédula') || cleanHeader.includes('cedula')) {
+        mappings[header] = 'cedula';
+      } else if (cleanHeader.includes('nombres') || cleanHeader.includes('nombre')) {
+        mappings[header] = 'firstName';
+      } else if (cleanHeader.includes('apellidos') || cleanHeader.includes('apellido')) {
+        mappings[header] = 'lastName';
+      } else if (cleanHeader.includes('celular') || cleanHeader.includes('teléfono')) {
+        mappings[header] = 'phone';
+      } else if (cleanHeader.includes('email') || cleanHeader.includes('correo')) {
+        mappings[header] = 'email';
+      } else if (cleanHeader.includes('meta')) {
+        mappings[header] = 'meta';
+      } else if (cleanHeader.includes('grupo')) {
+        mappings[header] = 'groupName';
+      }
+    });
+  }
+  
+  return mappings;
 }
+
+// ✅ FUNCIÓN PARA LIMPIAR Y VALIDAR DATOS
+export function cleanAndValidateData(data: any[], mappings: Record<string, string>): {
+  cleanData: any[];
+  errors: string[];
+  warnings: string[];
+} {
+  const cleanData: any[] = [];
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  data.forEach((row, index) => {
+    const cleanRow: any = {};
+    let hasRequiredFields = false;
+
+    // Aplicar mapeos y limpiar datos
+    for (const [csvColumn, entityField] of Object.entries(mappings)) {
+      if (row[csvColumn] !== undefined && row[csvColumn] !== null) {
+        let value = String(row[csvColumn]).trim();
+        
+        // Limpiezas específicas por campo
+        if (entityField === 'cedula') {
+          value = value.replace(/\D/g, ''); // Solo números
+          if (value.length >= 8 && value.length <= 10) {
+            cleanRow[entityField] = value;
+            hasRequiredFields = true;
+          } else {
+            errors.push(`Fila ${index + 1}: Cédula inválida (${value})`);
+          }
+        } else if (entityField === 'celular') {
+          value = value.replace(/\D/g, ''); // Solo números
+          if (value.length === 10 && value.startsWith('3')) {
+            cleanRow[entityField] = value;
+          } else if (value.length > 0) {
+            warnings.push(`Fila ${index + 1}: Celular con formato inválido (${value})`);
+            cleanRow[entityField] = value; // Guardar de todas formas
+          }
+        } else if (entityField.includes('fecha')) {
+          // Validar formato de fecha
+          if (value.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+            cleanRow[entityField] = value;
+          } else if (value.length > 0) {
+            warnings.push(`Fila ${index + 1}: Fecha con formato inválido (${value}). Use DD/MM/YYYY`);
+          }
+        } else {
+          cleanRow[entityField] = value;
+          if (['nombres', 'apellidos'].includes(entityField) && value.length > 0) {
+            hasRequiredFields = true;
+          }
+        }
+      }
+    }
+
+    // Solo agregar filas que tengan al menos campos requeridos
+    if (hasRequiredFields) {
+      cleanData.push(cleanRow);
+    } else {
+      warnings.push(`Fila ${index + 1}: Sin campos requeridos, se omitirá`);
+    }
+  });
+
+  return { cleanData, errors, warnings };
+}
+
+// ✅ EXPORTAR UTILIDADES
+export const templateUtils = {
+  download: downloadTemplate,
+  validate: validateFileStructure,
+  suggest: generateSuggestedMapping,
+  clean: cleanAndValidateData,
+  getAvailable: getAvailableTemplates
+};

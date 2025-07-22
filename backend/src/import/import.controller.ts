@@ -1,4 +1,5 @@
-// backend/src/import/import.controller.ts
+// backend/src/import/import.controller.ts - ACTUALIZADO CON PLANILLADOS
+
 import {
   Controller,
   Post,
@@ -49,6 +50,20 @@ export class ImportController {
     return this.importService.previewFile(file);
   }
 
+  // ✅ NUEVO - Endpoint para importar planillados
+  @Post('planillados')
+  async importPlanillados(@Body() mappingDto: ImportMappingDto): Promise<ImportResultDto> {
+    if (!mappingDto.previewData || mappingDto.previewData.length === 0) {
+      throw new BadRequestException('No hay datos para importar');
+    }
+
+    if (mappingDto.entityType !== 'planillados') {
+      throw new BadRequestException('Tipo de entidad debe ser "planillados"');
+    }
+
+    return this.importService.importPlanillados(mappingDto);
+  }
+
   @Post('voters')
   async importVoters(@Body() mappingDto: ImportMappingDto): Promise<ImportResultDto> {
     if (!mappingDto.previewData || mappingDto.previewData.length === 0) {
@@ -72,8 +87,7 @@ export class ImportController {
       throw new BadRequestException('Tipo de entidad debe ser "leaders"');
     }
 
-    // TODO: Implementar importación de líderes
-    throw new BadRequestException('Importación de líderes no implementada aún');
+    return this.importService.importLeaders(mappingDto);
   }
 
   @Post('candidates')
@@ -86,8 +100,7 @@ export class ImportController {
       throw new BadRequestException('Tipo de entidad debe ser "candidates"');
     }
 
-    // TODO: Implementar importación de candidatos
-    throw new BadRequestException('Importación de candidatos no implementada aún');
+    return this.importService.importCandidates(mappingDto);
   }
 
   @Post('groups')
@@ -100,7 +113,97 @@ export class ImportController {
       throw new BadRequestException('Tipo de entidad debe ser "groups"');
     }
 
-    // TODO: Implementar importación de grupos
-    throw new BadRequestException('Importación de grupos no implementada aún');
+    return this.importService.importGroups(mappingDto);
+  }
+
+  // ✅ NUEVO - Endpoint para obtener sugerencias de mapeo
+  @Post('suggest-mappings')
+  async suggestMappings(@Body() data: { headers: string[], entityType: string }) {
+    const { headers, entityType } = data;
+    
+    if (!headers || !entityType) {
+      throw new BadRequestException('Headers y entityType son requeridos');
+    }
+
+    const suggestions = this.importService.suggestFieldMappings(headers, entityType);
+    
+    return {
+      suggestions,
+      entityType,
+      availableFields: this.getAvailableFields(entityType)
+    };
+  }
+
+  // ✅ Método auxiliar para obtener campos disponibles por tipo de entidad
+  private getAvailableFields(entityType: string): string[] {
+    const fieldMappings = {
+      planillados: [
+        'cedula',
+        'nombres', 
+        'apellidos',
+        'celular',
+        'direccion',
+        'barrioVive',
+        'fechaExpedicion',
+        'departamentoVotacion',
+        'municipioVotacion',
+        'direccionVotacion',
+        'zonaPuesto',
+        'mesa',
+        'liderCedula',
+        'grupoNombre',
+        'fechaNacimiento',
+        'genero',
+        'notas'
+      ],
+      voters: [
+        'cedula',
+        'firstName',
+        'lastName', 
+        'phone',
+        'email',
+        'address',
+        'neighborhood',
+        'municipality',
+        'votingPlace',
+        'birthDate',
+        'gender',
+        'leaderCedula',
+        'commitment',
+        'notes'
+      ],
+      leaders: [
+        'cedula',
+        'firstName',
+        'lastName',
+        'phone',
+        'email',
+        'address',
+        'neighborhood',
+        'municipality',
+        'birthDate',
+        'gender',
+        'meta',
+        'groupName'
+      ],
+      candidates: [
+        'name',
+        'email',
+        'phone',
+        'meta',
+        'description',
+        'position',
+        'party'
+      ],
+      groups: [
+        'name',
+        'description',
+        'zone',
+        'meta',
+        'candidateName'
+      ]
+    };
+
+    return fieldMappings[entityType] || [];
   }
 }

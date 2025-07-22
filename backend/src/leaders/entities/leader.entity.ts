@@ -1,7 +1,6 @@
 // backend/src/leaders/entities/leader.entity.ts - CORREGIDA (SIN @Index duplicados)
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { Group } from '../../groups/entities/group.entity';
-import { Voter } from '../../voters/entities/voter.entity';
 
 @Entity('leaders')
 export class Leader {
@@ -53,9 +52,6 @@ export class Leader {
   @ManyToOne(() => Group, group => group.leaders)
   @JoinColumn({ name: 'group_id' })
   group: Group;
-
-  @OneToMany(() => Voter, voter => voter.leader)
-  voters: Voter[];
 
   @CreateDateColumn()
   createdAt: Date;

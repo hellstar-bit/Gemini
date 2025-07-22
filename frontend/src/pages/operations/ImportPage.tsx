@@ -1,111 +1,75 @@
-// frontend/src/pages/operations/ImportPage.tsx - VERSIÓN COMPLETA
+// frontend/src/pages/operations/ImportPage.tsx - ACTUALIZADO PARA PLANILLADOS
+
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import {
-  CloudArrowUpIcon,
-  DocumentTextIcon,
+import { 
+  CloudArrowUpIcon, 
+  DocumentTextIcon, 
   CheckCircleIcon,
   ExclamationTriangleIcon,
-  XCircleIcon,
-  ArrowRightIcon,
+  ArrowPathIcon,
   ArrowLeftIcon,
-  InformationCircleIcon,
-  CogIcon,
-  ClockIcon
+  ArrowRightIcon
 } from '@heroicons/react/24/outline';
-import { importService } from '../../services/importService';
-import { TemplateInfoCard, CompactTemplateButton } from '../../components/import/TemplateInfoCard';
+import { 
+  importService, 
+  type ImportPreview, 
+  type ImportResult, 
+  type ImportMapping,
+  ENTITY_TYPES,
+  ENTITY_FIELDS,
+  type MappingQuality
+} from '../../services/importService';
 
-// Tipos para la importación
-interface ImportPreview {
-  data: any[];
-  headers: string[];
-  totalRows: number;
-  sampleRows: any[];
-  errors: string[];
-  warnings: string[];
-}
-
-interface ImportResult {
-  success: boolean;
-  totalRows: number;
-  successCount: number;
-  errorCount: number;
-  errors: any[];
-  warnings: string[];
-  executionTime: number;
-}
-
-const ENTITY_TYPES = [
-  { value: 'voters', label: 'Votantes', description: 'Importar base de datos de votantes', icon: '👥' },
-  { value: 'leaders', label: 'Líderes', description: 'Importar líderes de campaña', icon: '👤' },
-  { value: 'candidates', label: 'Candidatos', description: 'Importar candidatos', icon: '🎖️' },
-  { value: 'groups', label: 'Grupos', description: 'Importar grupos de campaña', icon: '🏛️' }
-];
-
-const VOTER_FIELDS = [
-  { key: 'cedula', label: 'Cédula *', required: true },
-  { key: 'firstName', label: 'Nombres *', required: true },
-  { key: 'lastName', label: 'Apellidos *', required: true },
-  { key: 'phone', label: 'Celular', required: false },
-  { key: 'email', label: 'Email', required: false },
-  { key: 'address', label: 'Dirección', required: false },
-  { key: 'neighborhood', label: 'Barrio', required: false },
-  { key: 'expeditionDate', label: 'Fecha de Expedición', required: false },
-  { key: 'municipality', label: 'Municipio', required: false },
-  { key: 'votingPlace', label: 'Mesa de Votación', required: false },
-  { key: 'birthDate', label: 'Fecha de Nacimiento', required: false },
-  { key: 'gender', label: 'Género', required: false },
-  { key: 'leaderCedula', label: 'Cédula del Líder', required: false },
-  { key: 'commitment', label: 'Compromiso', required: false },
-  { key: 'notes', label: 'Notas', required: false }
-];
-
-export const ImportPage: React.FC = () => {
+const ImportPage: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
-  const [selectedEntityType, setSelectedEntityType] = useState<string>('voters');
+  const [selectedEntityType, setSelectedEntityType] = useState<keyof typeof ENTITY_FIELDS>('planillados'); // ✅ DEFAULT planillados
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [fieldMappings, setFieldMappings] = useState<Record<string, string>>({});
-  const [isLoading, setIsLoading] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [mappingQuality, setMappingQuality] = useState<MappingQuality | null>(null);
 
+  interface EntityField {
+  key: string;
+  label: string;
+  required: boolean;
+  example?: string;
+}
+
+
+  // ✅ PROCESAR ARCHIVO SUBIDO
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (acceptedFiles.length === 0) return;
+    
     const file = acceptedFiles[0];
-    if (!file) return;
-
     setUploadedFile(file);
     setIsLoading(true);
-
+    
     try {
-      // En producción, esto llamaría al backend
-      const preview = await importService.previewFile(file);
-      setPreview(preview);
+      console.log('🔄 Procesando archivo:', file.name);
+      const previewData = await importService.previewFile(file);
+      console.log('📊 Preview obtenido:', previewData);
       
-      // Generar mapeo automático
-      const suggestions = importService.suggestFieldMappings(preview.headers, selectedEntityType);
+      setPreview(previewData);
+      
+      // ✅ OBTENER SUGERENCIAS DE MAPEO AUTOMÁTICO
+      const suggestions = await importService.suggestFieldMappings(
+        previewData.headers, 
+        selectedEntityType
+      );
+      console.log('💡 Sugerencias de mapeo:', suggestions);
+      
       setFieldMappings(suggestions);
-      
       setCurrentStep(2);
     } catch (error) {
-      console.error('Error previewing file:', error);
-      // Simular preview para desarrollo
-      const mockPreview: ImportPreview = {
-        data: [],
-        headers: ['cédula', 'nombres', 'apellidos', 'celular', 'dirección', 'barrio', 'fecha de expedición'],
-        totalRows: 1250,
-        sampleRows: [
-          { 'cédula': '12345678', 'nombres': 'Juan Carlos', 'apellidos': 'Pérez García', 'celular': '3001234567' },
-          { 'cédula': '87654321', 'nombres': 'María Fernanda', 'apellidos': 'González López', 'celular': '3009876543' }
-        ],
-        errors: [],
-        warnings: ['Archivo grande detectado. Archivos grandes pueden tomar más tiempo.']
-      };
-      
-      setPreview(mockPreview);
-      const suggestions = importService.suggestFieldMappings(mockPreview.headers, selectedEntityType);
-      setFieldMappings(suggestions);
-      setCurrentStep(2);
+      console.error('❌ Error procesando archivo:', error);
+      if (error instanceof Error) {
+        alert(`Error procesando archivo: ${error.message}`);
+      } else {
+        alert('Ocurrió un error desconocido al procesar el archivo.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -122,122 +86,113 @@ export const ImportPage: React.FC = () => {
     maxSize: 10 * 1024 * 1024 // 10MB
   });
 
+  // ✅ MANEJAR CAMBIO DE MAPEO
   const handleFieldMapping = (csvColumn: string, entityField: string) => {
-    setFieldMappings(prev => ({
-      ...prev,
+    const newMappings = {
+      ...fieldMappings,
       [csvColumn]: entityField
-    }));
+    };
+    setFieldMappings(newMappings);
+    
+    // Actualizar calidad del mapeo
+    const quality = importService.getMappingQuality(newMappings, selectedEntityType);
+    setMappingQuality(quality);
   };
 
+  // ✅ VALIDAR Y CONTINUAR AL PASO 3
   const proceedToMapping = () => {
+    const validation = importService.validateMapping(fieldMappings, selectedEntityType);
+    
+    if (!validation.isValid) {
+      alert(`Errores en el mapeo:\n${validation.errors.join('\n')}`);
+      return;
+    }
+    
     setCurrentStep(3);
   };
 
+  // ✅ EJECUTAR IMPORTACIÓN
   const executeImport = async () => {
+    if (!preview || !uploadedFile) return;
+    
     setIsLoading(true);
     
     try {
-      // Simular importación
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      const mockResult: ImportResult = {
-        success: true,
-        totalRows: 1250,
-        successCount: 1235,
-        errorCount: 15,
-        errors: [
-          { row: 15, field: 'cedula', error: 'Cédula duplicada', severity: 'error' },
-          { row: 89, field: 'email', error: 'Formato de email inválido', severity: 'warning' }
-        ],
-        warnings: ['15 registros tenían errores menores pero se importaron'],
-        executionTime: 2850
+      const mapping: ImportMapping = {
+        fileName: uploadedFile.name,
+        entityType: selectedEntityType,
+        fieldMappings,
+        previewData: preview.data
       };
       
-      setImportResult(mockResult);
+      console.log('🚀 Iniciando importación:', mapping);
+      
+      // ✅ USAR EL MÉTODO GENÉRICO PARA CUALQUIER ENTIDAD
+      const result = await importService.importEntity(mapping);
+      console.log('✅ Importación completada:', result);
+      
+      setImportResult(result);
       setCurrentStep(4);
     } catch (error) {
-      console.error('Error importing:', error);
+      console.error('❌ Error en importación:', error);
+      if (error instanceof Error) {
+        alert(`Error en importación: ${error.message}`);
+      } else {
+        alert('Ocurrió un error desconocido durante la importación.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ✅ RESETEAR IMPORTACIÓN
   const resetImport = () => {
     setCurrentStep(1);
     setUploadedFile(null);
     setPreview(null);
     setFieldMappings({});
     setImportResult(null);
+    setMappingQuality(null);
   };
 
-  const renderStepIndicator = () => (
-    <div className="flex items-center justify-center mb-8">
-      {[1, 2, 3, 4].map((step) => (
-        <div key={step} className="flex items-center">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-            currentStep >= step 
-              ? 'bg-primary-500 text-white' 
-              : 'bg-gray-200 text-gray-500'
-          }`}>
-            {step}
-          </div>
-          {step < 4 && (
-            <div className={`w-16 h-1 mx-2 ${
-              currentStep > step ? 'bg-primary-500' : 'bg-gray-200'
-            }`} />
-          )}
-        </div>
-      ))}
-    </div>
-  );
-
+  // ✅ RENDER STEP 1: SELECCIÓN DE ARCHIVO
   const renderStep1 = () => (
-    <div className="max-w-2xl mx-auto">
-      <div className="text-center mb-8">
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">Importar Datos</h3>
-        <p className="text-gray-600">Selecciona el tipo de datos y sube tu archivo Excel</p>
-      </div>
-
+    <div className="space-y-6">
       {/* Selector de tipo de entidad */}
-      <div className="mb-8">
+      <div>
         <label className="block text-sm font-medium text-gray-700 mb-3">
-          Tipo de datos a importar
+          ¿Qué tipo de datos vas a importar?
         </label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {ENTITY_TYPES.map((type) => (
-            <button
-              key={type.value}
-              onClick={() => setSelectedEntityType(type.value)}
-              className={`p-4 border-2 rounded-xl text-left transition-all duration-300 ${
-                selectedEntityType === type.value
-                  ? 'border-primary-500 bg-primary-50 shadow-md'
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {ENTITY_TYPES.map((entityType) => (
+            <div
+              key={entityType.value}
+              className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                selectedEntityType === entityType.value
+                  ? 'border-primary-500 bg-primary-50'
                   : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
               }`}
+              onClick={() => setSelectedEntityType(entityType.value as keyof typeof ENTITY_FIELDS)}
             >
-              <div className="flex items-center">
-                <span className="text-2xl mr-3">{type.icon}</span>
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">{entityType.icon}</span>
                 <div>
-                  <div className="font-semibold text-gray-900">{type.label}</div>
-                  <div className="text-sm text-gray-600">{type.description}</div>
+                  <h3 className="font-semibold text-gray-900">{entityType.label}</h3>
+                  <p className="text-sm text-gray-600">{entityType.description}</p>
                 </div>
               </div>
-            </button>
+              {selectedEntityType === entityType.value && (
+                <CheckCircleIcon className="absolute top-2 right-2 w-5 h-5 text-primary-500" />
+              )}
+            </div>
           ))}
         </div>
       </div>
 
-      {/* Sección de plantilla */}
-      <div className="mb-8">
-        <TemplateInfoCard 
-          entityType={selectedEntityType as 'voters' | 'leaders' | 'candidates' | 'groups'}
-          className="mb-6"
-        />
-      </div>
-
-      {/* Zona de drag & drop */}
+      {/* Zona de drop */}
       <div
         {...getRootProps()}
-        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 ${
+        className={`p-12 border-2 border-dashed rounded-xl text-center cursor-pointer transition-colors ${
           isDragActive
             ? 'border-primary-400 bg-primary-50'
             : 'border-gray-300 hover:border-primary-400 hover:bg-gray-50'
@@ -271,193 +226,117 @@ export const ImportPage: React.FC = () => {
         </div>
       )}
 
-      {/* Consejos adicionales */}
-      <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-        <h4 className="font-semibold text-yellow-800 mb-2">💡 Consejos para una importación exitosa:</h4>
-        <ul className="text-sm text-yellow-700 space-y-1">
-          <li>• Usa la plantilla descargable para garantizar el formato correcto</li>
-          <li>• Revisa que no haya cédulas duplicadas</li>
-          <li>• Asegúrate de que las fechas estén en formato DD/MM/YYYY</li>
-          <li>• Los números de celular deben incluir el código de área</li>
-          <li>• Evita dejar filas vacías entre los datos</li>
-        </ul>
-      </div>
-    </div>
-  );
-
-  const renderStep2 = () => (
-    <div className="max-w-4xl mx-auto">
-      <div className="text-center mb-8">
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">Vista Previa de Datos</h3>
-        <p className="text-gray-600">Revisa la información antes de continuar</p>
-      </div>
-
-      {preview && (
-        <div className="space-y-6">
-          {/* Estadísticas */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-              <div className="text-2xl font-bold text-blue-900">{preview.totalRows.toLocaleString()}</div>
-              <div className="text-blue-600">Total de filas</div>
-            </div>
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-              <div className="text-2xl font-bold text-green-900">{preview.headers.length}</div>
-              <div className="text-green-600">Columnas detectadas</div>
-            </div>
-            <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-              <div className="text-2xl font-bold text-purple-900">{preview.sampleRows.length}</div>
-              <div className="text-purple-600">Filas de muestra</div>
-            </div>
-          </div>
-
-          {/* Columnas detectadas */}
-          <div className="bg-white border border-gray-200 rounded-xl p-6">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4">Columnas detectadas en tu archivo:</h4>
-            <div className="flex flex-wrap gap-2">
-              {preview.headers.map((header, index) => (
-                <span
-                  key={index}
-                  className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium"
-                >
-                  {header}
+      {/* Información específica por tipo de entidad */}
+      {selectedEntityType && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+          <h4 className="font-semibold text-yellow-800 mb-2">
+            📋 Campos para {ENTITY_TYPES.find(e => e.value === selectedEntityType)?.label}
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            {ENTITY_FIELDS[selectedEntityType]?.map((field) => (
+              <div key={field.key} className="flex items-center space-x-2">
+                <span className={`w-2 h-2 rounded-full ${field.required ? 'bg-red-500' : 'bg-gray-400'}`} />
+                <span className="text-yellow-700">
+                  <strong>{field.label}</strong>
+                  {field.required && <span className="text-red-600"> (requerido)</span>}
+                  {field.example && <span className="text-gray-600"> - ej: {field.example}</span>}
                 </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Datos de muestra */}
-          <div className="bg-white border border-gray-200 rounded-xl p-6">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4">Vista previa de datos:</h4>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {preview.headers.map((header, index) => (
-                      <th
-                        key={index}
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {preview.sampleRows.slice(0, 5).map((row, rowIndex) => (
-                    <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      {preview.headers.map((header, colIndex) => (
-                        <td key={colIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {row[header] || '-'}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Errores y advertencias */}
-          {(preview.errors.length > 0 || preview.warnings.length > 0) && (
-            <div className="space-y-4">
-              {preview.errors.length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                  <div className="flex items-center mb-2">
-                    <XCircleIcon className="w-5 h-5 text-red-500 mr-2" />
-                    <span className="font-semibold text-red-800">Errores detectados</span>
-                  </div>
-                  <ul className="text-sm text-red-700 space-y-1">
-                    {preview.errors.map((error, index) => (
-                      <li key={index}>• {error}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {preview.warnings.length > 0 && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-                  <div className="flex items-center mb-2">
-                    <ExclamationTriangleIcon className="w-5 h-5 text-yellow-500 mr-2" />
-                    <span className="font-semibold text-yellow-800">Advertencias</span>
-                  </div>
-                  <ul className="text-sm text-yellow-700 space-y-1">
-                    {preview.warnings.map((warning, index) => (
-                      <li key={index}>• {warning}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Botones de acción */}
-          <div className="flex justify-between">
-            <button
-              onClick={() => setCurrentStep(1)}
-              className="flex items-center px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <ArrowLeftIcon className="w-5 h-5 mr-2" />
-              Volver
-            </button>
-            <button
-              onClick={proceedToMapping}
-              disabled={preview.errors.length > 0}
-              className="flex items-center px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Continuar al mapeo
-              <ArrowRightIcon className="w-5 h-5 ml-2" />
-            </button>
+              </div>
+            ))}
           </div>
         </div>
       )}
     </div>
   );
 
-  const renderStep3 = () => (
-    <div className="max-w-4xl mx-auto">
-      <div className="text-center mb-8">
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">Mapeo de Campos</h3>
-        <p className="text-gray-600">Configura cómo se asignan las columnas de tu archivo</p>
-      </div>
+  // ✅ RENDER STEP 2: MAPEO DE CAMPOS
+  const renderStep2 = () => {
+    if (!preview) return null;
 
+    const availableFields = importService.getAvailableFields(selectedEntityType);
+    const usedFields = Object.values(fieldMappings);
+
+    return (
       <div className="space-y-6">
-        {/* Mapeo automático detectado */}
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-          <div className="flex items-center mb-2">
-            <CheckCircleIcon className="w-5 h-5 text-green-500 mr-2" />
-            <span className="font-semibold text-green-800">Mapeo automático detectado</span>
+        {/* Información del archivo */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <h3 className="font-semibold text-blue-900 mb-2">📊 Información del archivo</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <span className="text-blue-700 font-medium">Archivo:</span>
+              <p className="text-blue-800">{uploadedFile?.name}</p>
+            </div>
+            <div>
+              <span className="text-blue-700 font-medium">Filas:</span>
+              <p className="text-blue-800">{preview.totalRows.toLocaleString()}</p>
+            </div>
+            <div>
+              <span className="text-blue-700 font-medium">Columnas:</span>
+              <p className="text-blue-800">{preview.headers.length}</p>
+            </div>
+            <div>
+              <span className="text-blue-700 font-medium">Tipo:</span>
+              <p className="text-blue-800">{ENTITY_TYPES.find(e => e.value === selectedEntityType)?.label}</p>
+            </div>
           </div>
-          <p className="text-sm text-green-700">
-            Se han detectado automáticamente {Object.keys(fieldMappings).length} campos. 
-            Puedes ajustar el mapeo si es necesario.
-          </p>
         </div>
 
-        {/* Tabla de mapeo */}
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-            <h4 className="text-lg font-semibold text-gray-900">Configuración de campos</h4>
+        {/* Calidad del mapeo */}
+        {mappingQuality && (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold text-green-900">🎯 Calidad del mapeo</h3>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                mappingQuality.score >= 80 ? 'bg-green-100 text-green-800' :
+                mappingQuality.score >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                'bg-red-100 text-red-800'
+              }`}>
+                {mappingQuality.score}%
+              </span>
+            </div>
+            <p className="text-green-700 text-sm mb-2">{mappingQuality.feedback}</p>
+            <div className="w-full bg-green-200 rounded-full h-2">
+              <div 
+                className="bg-green-600 h-2 rounded-full transition-all"
+                style={{ width: `${mappingQuality.score}%` }}
+              />
+            </div>
           </div>
-          <div className="divide-y divide-gray-200">
-            {preview?.headers.map((header, index) => (
-              <div key={index} className="px-6 py-4 flex items-center justify-between">
+        )}
+
+        {/* Mapeo de campos */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900">
+            🔗 Mapear columnas del archivo a campos del sistema
+          </h3>
+          
+          <div className="grid gap-4">
+            {preview.headers.map((header, index) => (
+              <div key={index} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
                 <div className="flex-1">
-                  <div className="font-medium text-gray-900">{header}</div>
-                  <div className="text-sm text-gray-500">Columna del archivo</div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    📄 {header}
+                  </label>
+                  <div className="text-xs text-gray-500">
+                    Ejemplo: {preview.sampleRows[0]?.[header] || 'Sin datos'}
+                  </div>
                 </div>
-                <div className="mx-4">
-                  <ArrowRightIcon className="w-5 h-5 text-gray-400" />
-                </div>
+                <ArrowRightIcon className="w-5 h-5 text-gray-400" />
                 <div className="flex-1">
                   <select
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     value={fieldMappings[header] || ''}
                     onChange={(e) => handleFieldMapping(header, e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   >
-                    <option value="">No mapear</option>
-                    {VOTER_FIELDS.map((field) => (
-                      <option key={field.key} value={field.key}>
-                        {field.label}
+                    <option value="">-- No mapear --</option>
+                    {availableFields.map((field: EntityField) => (
+                      <option 
+                        key={field.key} 
+                        value={field.key}
+                        disabled={usedFields.includes(field.key) && fieldMappings[header] !== field.key}
+                      >
+                        {field.label} {field.required ? '(requerido)' : ''}
+                        {usedFields.includes(field.key) && fieldMappings[header] !== field.key ? ' (ya usado)' : ''}
                       </option>
                     ))}
                   </select>
@@ -467,235 +346,339 @@ export const ImportPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Campos requeridos */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <div className="flex items-center mb-2">
-            <InformationCircleIcon className="w-5 h-5 text-blue-500 mr-2" />
-            <span className="font-semibold text-blue-800">Campos requeridos</span>
-          </div>
-          <div className="text-sm text-blue-700">
-            <p className="mb-2">Asegúrate de mapear estos campos obligatorios:</p>
-            <div className="flex flex-wrap gap-2">
-              {VOTER_FIELDS.filter(field => field.required).map((field) => {
-                const isMapped = Object.values(fieldMappings).includes(field.key);
-                return (
-                  <span
-                    key={field.key}
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      isMapped
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}
-                  >
-                    {field.label} {isMapped ? '✓' : '✗'}
-                  </span>
-                );
-              })}
+        {/* Botones */}
+        <div className="flex justify-between pt-6">
+          <button
+            onClick={() => setCurrentStep(1)}
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center space-x-2"
+          >
+            <ArrowLeftIcon className="w-4 h-4" />
+            <span>Anterior</span>
+          </button>
+          <button
+            onClick={proceedToMapping}
+            disabled={Object.keys(fieldMappings).length === 0}
+            className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+          >
+            <span>Continuar</span>
+            <ArrowRightIcon className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // ✅ RENDER STEP 3: CONFIRMACIÓN
+  const renderStep3 = () => {
+    if (!preview) return null;
+
+    const mappedFields = Object.entries(fieldMappings).filter(([, value]) => value !== '');
+    const validation = importService.validateMapping(fieldMappings, selectedEntityType);
+
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            🔍 Confirmar importación
+          </h2>
+          <p className="text-gray-600">
+            Revisa la configuración antes de proceder con la importación
+          </p>
+        </div>
+
+        {/* Resumen de la importación */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+          <h3 className="font-semibold text-blue-900 mb-4">📋 Resumen de importación</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <span className="text-blue-700 font-medium">Tipo:</span>
+              <p className="text-blue-800">{ENTITY_TYPES.find(e => e.value === selectedEntityType)?.label}</p>
+            </div>
+            <div>
+              <span className="text-blue-700 font-medium">Registros:</span>
+              <p className="text-blue-800">{preview.totalRows.toLocaleString()}</p>
+            </div>
+            <div>
+              <span className="text-blue-700 font-medium">Campos mapeados:</span>
+              <p className="text-blue-800">{mappedFields.length}</p>
+            </div>
+            <div>
+              <span className="text-blue-700 font-medium">Estado:</span>
+              <p className={`font-semibold ${validation.isValid ? 'text-green-600' : 'text-red-600'}`}>
+                {validation.isValid ? '✅ Listo' : '❌ Errores'}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Botones de acción */}
-        <div className="flex justify-between">
+        {/* Errores de validación */}
+        {!validation.isValid && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <h4 className="font-semibold text-red-900 mb-2">❌ Errores de validación</h4>
+            <ul className="list-disc list-inside space-y-1">
+              {validation.errors.map((error, index) => (
+                <li key={index} className="text-red-700 text-sm">{error}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Mapeo de campos */}
+        <div className="bg-white border border-gray-200 rounded-xl p-4">
+          <h4 className="font-semibold text-gray-900 mb-4">🔗 Campos mapeados</h4>
+          <div className="space-y-2">
+            {mappedFields.map(([csvColumn, entityField]) => {
+              const fieldInfo = ENTITY_FIELDS[selectedEntityType]?.find(f => f.key === entityField);
+              return (
+                <div key={csvColumn} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                  <span className="text-gray-700">📄 {csvColumn}</span>
+                  <ArrowRightIcon className="w-4 h-4 text-gray-400" />
+                  <span className="font-medium text-gray-900">
+                    {fieldInfo?.label || entityField}
+                    {fieldInfo?.required && <span className="text-red-500 ml-1">*</span>}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Vista previa de datos */}
+        <div className="bg-white border border-gray-200 rounded-xl p-4">
+          <h4 className="font-semibold text-gray-900 mb-4">👁️ Vista previa de datos</h4>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  {mappedFields.map(([, entityField]) => {
+                    const fieldInfo = ENTITY_FIELDS[selectedEntityType]?.find(f => f.key === entityField);
+                    return (
+                      <th key={entityField} className="text-left p-2 font-medium text-gray-900">
+                        {fieldInfo?.label || entityField}
+                        {fieldInfo?.required && <span className="text-red-500 ml-1">*</span>}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {preview.sampleRows.slice(0, 3).map((row, rowIndex) => (
+                  <tr key={rowIndex} className="border-b border-gray-100">
+                    {mappedFields.map(([csvColumn, entityField]) => (
+                      <td key={entityField} className="p-2 text-gray-700">
+                        {row[csvColumn] || '-'}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Mostrando primeras 3 filas de {preview.totalRows.toLocaleString()} registros
+          </p>
+        </div>
+
+        {/* Botones */}
+        <div className="flex justify-between pt-6">
           <button
             onClick={() => setCurrentStep(2)}
-            className="flex items-center px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors"
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center space-x-2"
           >
-            <ArrowLeftIcon className="w-5 h-5 mr-2" />
-            Volver
+            <ArrowLeftIcon className="w-4 h-4" />
+            <span>Anterior</span>
           </button>
           <button
             onClick={executeImport}
-            disabled={isLoading}
-            className="flex items-center px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors disabled:opacity-50"
+            disabled={!validation.isValid || isLoading}
+            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
           >
             {isLoading ? (
               <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                Importando...
+                <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                <span>Importando...</span>
               </>
             ) : (
               <>
-                Ejecutar importación
-                <CogIcon className="w-5 h-5 ml-2" />
+                <span>🚀 Ejecutar importación</span>
               </>
             )}
           </button>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  const renderStep4 = () => (
-    <div className="max-w-4xl mx-auto">
-      <div className="text-center mb-8">
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">Importación Completada</h3>
-        <p className="text-gray-600">Revisa los resultados de la importación</p>
-      </div>
+  // ✅ RENDER STEP 4: RESULTADOS
+  const renderStep4 = () => {
+    if (!importResult) return null;
 
-      {importResult && (
-        <div className="space-y-6">
-          {/* Resumen de resultados */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-              <div className="text-2xl font-bold text-blue-900">{importResult.totalRows.toLocaleString()}</div>
-              <div className="text-blue-600">Total procesadas</div>
-            </div>
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-              <div className="text-2xl font-bold text-green-900">{importResult.successCount.toLocaleString()}</div>
-              <div className="text-green-600">Importadas exitosamente</div>
-            </div>
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-              <div className="text-2xl font-bold text-red-900">{importResult.errorCount}</div>
-              <div className="text-red-600">Con errores</div>
-            </div>
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-              <div className="text-2xl font-bold text-gray-900">{(importResult.executionTime / 1000).toFixed(1)}s</div>
-              <div className="text-gray-600">Tiempo de ejecución</div>
-            </div>
-          </div>
-
-          {/* Estado general */}
-          <div className={`border-2 rounded-xl p-6 ${
-            importResult.success 
-              ? 'border-green-200 bg-green-50' 
-              : 'border-red-200 bg-red-50'
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
+            importResult.success ? 'bg-green-100' : 'bg-yellow-100'
           }`}>
-            <div className="flex items-center">
-              {importResult.success ? (
-                <CheckCircleIcon className="w-8 h-8 text-green-500 mr-4" />
-              ) : (
-                <XCircleIcon className="w-8 h-8 text-red-500 mr-4" />
-              )}
-              <div>
-                <h4 className={`text-xl font-semibold ${
-                  importResult.success ? 'text-green-900' : 'text-red-900'
-                }`}>
-                  {importResult.success 
-                    ? '¡Importación completada exitosamente!' 
-                    : 'Importación completada con errores'
-                  }
-                </h4>
-                <p className={`${
-                  importResult.success ? 'text-green-700' : 'text-red-700'
-                }`}>
-                  {importResult.success 
-                    ? `Se importaron ${importResult.successCount} registros de ${importResult.totalRows} procesados.`
-                    : `Se importaron ${importResult.successCount} registros, ${importResult.errorCount} tuvieron errores.`
-                  }
-                </p>
-              </div>
+            {importResult.success ? (
+              <CheckCircleIcon className="w-8 h-8 text-green-600" />
+            ) : (
+              <ExclamationTriangleIcon className="w-8 h-8 text-yellow-600" />
+            )}
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            {importResult.success ? '✅ Importación completada' : '⚠️ Importación con errores'}
+          </h2>
+          <p className="text-gray-600">
+            {importResult.success 
+              ? 'Todos los registros se importaron correctamente'
+              : 'La importación se completó pero algunos registros tuvieron errores'
+            }
+          </p>
+        </div>
+
+        {/* Estadísticas */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+          <h3 className="font-semibold text-blue-900 mb-4">📊 Resultados de la importación</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <span className="text-blue-700 font-medium">Total:</span>
+              <p className="text-2xl font-bold text-blue-800">{importResult.totalRows.toLocaleString()}</p>
+            </div>
+            <div>
+              <span className="text-green-700 font-medium">Exitosos:</span>
+              <p className="text-2xl font-bold text-green-600">{importResult.successCount.toLocaleString()}</p>
+            </div>
+            <div>
+              <span className="text-red-700 font-medium">Errores:</span>
+              <p className="text-2xl font-bold text-red-600">{importResult.errorCount.toLocaleString()}</p>
+            </div>
+            <div>
+              <span className="text-gray-700 font-medium">Tiempo:</span>
+              <p className="text-2xl font-bold text-gray-800">{(importResult.executionTime / 1000).toFixed(1)}s</p>
             </div>
           </div>
-
-          {/* Errores si los hay */}
-          {importResult.errors.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <ExclamationTriangleIcon className="w-5 h-5 text-yellow-500 mr-2" />
-                Errores encontrados ({importResult.errors.length})
-              </h4>
-              <div className="max-h-60 overflow-y-auto">
-                <div className="space-y-2">
-                  {importResult.errors.slice(0, 10).map((error, index) => (
-                    <div key={index} className="flex items-start p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <div className="text-sm">
-                        <span className="font-medium text-yellow-800">Fila {error.row}:</span>
-                        <span className="text-yellow-700 ml-2">{error.error}</span>
-                      </div>
-                    </div>
-                  ))}
-                  {importResult.errors.length > 10 && (
-                    <div className="text-sm text-gray-500 text-center py-2">
-                      ... y {importResult.errors.length - 10} errores más
-                    </div>
-                  )}
-                </div>
-              </div>
+          
+          {/* Barra de progreso */}
+          <div className="mt-4">
+            <div className="flex justify-between text-sm text-gray-600 mb-1">
+              <span>Tasa de éxito</span>
+              <span>{((importResult.successCount / importResult.totalRows) * 100).toFixed(1)}%</span>
             </div>
-          )}
-
-          {/* Advertencias */}
-          {importResult.warnings.length > 0 && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-              <div className="flex items-center mb-2">
-                <InformationCircleIcon className="w-5 h-5 text-yellow-500 mr-2" />
-                <span className="font-semibold text-yellow-800">Advertencias</span>
-              </div>
-              <ul className="text-sm text-yellow-700 space-y-1">
-                {importResult.warnings.map((warning, index) => (
-                  <li key={index}>• {warning}</li>
-                ))}
-              </ul>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-green-600 h-2 rounded-full"
+                style={{ width: `${(importResult.successCount / importResult.totalRows) * 100}%` }}
+              />
             </div>
-          )}
-
-          {/* Botones de acción */}
-          <div className="flex justify-center space-x-4">
-            <button
-              onClick={resetImport}
-              className="flex items-center px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <ArrowLeftIcon className="w-5 h-5 mr-2" />
-              Nueva importación
-            </button>
-            <button
-              onClick={() => window.location.href = '/operations/voters'}
-              className="flex items-center px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors"
-            >
-              Ver datos importados
-              <ArrowRightIcon className="w-5 h-5 ml-2" />
-            </button>
           </div>
         </div>
-      )}
+
+        {/* Errores */}
+        {importResult.errors.length > 0 && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <h4 className="font-semibold text-red-900 mb-4">❌ Errores encontrados</h4>
+            <div className="max-h-60 overflow-y-auto space-y-2">
+              {importResult.errors.slice(0, 10).map((error, index) => (
+                <div key={index} className="p-2 bg-white rounded border-l-4 border-red-400">
+                  <div className="flex justify-between">
+                    <span className="font-medium text-red-900">Fila {error.row}</span>
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      error.severity === 'error' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {error.severity === 'error' ? 'Error' : 'Advertencia'}
+                    </span>
+                  </div>
+                  <p className="text-red-700 text-sm">
+                    <strong>{error.field}:</strong> {error.error}
+                  </p>
+                  {error.value && (
+                    <p className="text-red-600 text-xs">Valor: {error.value}</p>
+                  )}
+                </div>
+              ))}
+              {importResult.errors.length > 10 && (
+                <p className="text-red-600 text-sm text-center">
+                  ... y {importResult.errors.length - 10} errores más
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Advertencias */}
+        {importResult.warnings.length > 0 && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+            <h4 className="font-semibold text-yellow-900 mb-2">⚠️ Advertencias</h4>
+            <ul className="list-disc list-inside space-y-1">
+              {importResult.warnings.map((warning, index) => (
+                <li key={index} className="text-yellow-700 text-sm">{warning}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Botones */}
+        <div className="flex justify-center space-x-4 pt-6">
+          <button
+            onClick={resetImport}
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+          >
+            Nueva importación
+          </button>
+          <button
+            onClick={() => window.location.href = '/planillados'}
+            className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+          >
+            Ver planillados importados
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // ✅ INDICADOR DE PASOS
+  const renderStepIndicator = () => (
+    <div className="flex items-center justify-center mb-8">
+      {[1, 2, 3, 4].map((step) => (
+        <div key={step} className="flex items-center">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
+            currentStep >= step 
+              ? 'bg-primary-500 text-white' 
+              : 'bg-gray-200 text-gray-500'
+          }`}>
+            {step}
+          </div>
+          {step < 4 && (
+            <div className={`w-16 h-1 mx-2 ${
+              currentStep > step ? 'bg-primary-500' : 'bg-gray-200'
+            }`} />
+          )}
+        </div>
+      ))}
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">Centro de Importación</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <CompactTemplateButton 
-                entityType={selectedEntityType as 'voters' | 'leaders' | 'candidates' | 'groups'}
-              />
-              <div className="flex items-center text-sm text-gray-500">
-                <ClockIcon className="w-4 h-4 mr-1" />
-                Última actualización: {new Date().toLocaleTimeString()}
-              </div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            📥 Importar datos desde Excel
+          </h1>
+          <p className="text-gray-600">
+            Sube tu archivo Excel o CSV y configura la importación de datos
+          </p>
         </div>
-      </div>
 
-      {/* Contenido principal */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Indicador de pasos */}
         {renderStepIndicator()}
-
-        {/* Título del paso actual */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center px-4 py-2 bg-primary-100 text-primary-800 rounded-full text-sm font-medium">
-            Paso {currentStep} de 4: {
-              currentStep === 1 ? 'Seleccionar archivo' :
-              currentStep === 2 ? 'Vista previa' :
-              currentStep === 3 ? 'Mapeo de campos' :
-              'Resultados'
-            }
-          </div>
-        </div>
 
         {/* Loading overlay */}
         {isLoading && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-8 max-w-md mx-auto text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
+            <div className="bg-white rounded-xl p-8 text-center">
+              <ArrowPathIcon className="w-8 h-8 animate-spin mx-auto text-primary-600 mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 {currentStep === 1 ? 'Procesando archivo...' :
                  currentStep === 3 ? 'Ejecutando importación...' :
@@ -739,28 +722,9 @@ export const ImportPage: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* Ayuda rápida */}
-        <div className="mt-8 max-w-4xl mx-auto">
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
-            <h4 className="text-lg font-semibold text-blue-900 mb-3">💡 ¿Necesitas ayuda?</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div>
-                <h5 className="font-medium text-blue-800 mb-1">Formato de archivo</h5>
-                <p className="text-blue-700">Usa archivos Excel (.xlsx) o CSV (.csv) con un máximo de 10MB</p>
-              </div>
-              <div>
-                <h5 className="font-medium text-blue-800 mb-1">Campos requeridos</h5>
-                <p className="text-blue-700">Asegúrate de incluir: cédula, nombres y apellidos como mínimo</p>
-              </div>
-              <div>
-                <h5 className="font-medium text-blue-800 mb-1">Formato de fechas</h5>
-                <p className="text-blue-700">Usa el formato DD/MM/YYYY para todas las fechas</p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
 };
+
+export default ImportPage;
