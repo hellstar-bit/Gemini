@@ -2,6 +2,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import * as XLSX from 'xlsx'; // Importar XLSX
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder, Between, Like, In } from 'typeorm';
 import { Planillado } from './entities/planillado.entity';
@@ -333,15 +334,86 @@ export class PlanilladosService {
   }
 
   // ✅ Exportar a Excel
-  async exportToExcel(filters: PlanilladoFiltersDto): Promise<Planillado[]> {
+  async exportToExcel(filters: PlanilladoFiltersDto): Promise<Buffer> {
+  try {
+    // Obtener datos con filtros
     const queryBuilder = this.createQueryBuilder(filters);
     queryBuilder.leftJoinAndSelect('planillado.lider', 'lider');
     queryBuilder.leftJoinAndSelect('planillado.grupo', 'grupo');
-    queryBuilder.orderBy('planillado.apellidos', 'ASC');
-    queryBuilder.addOrderBy('planillado.nombres', 'ASC');
+    
+    const planillados = await queryBuilder.getMany();
 
-    return queryBuilder.getMany();
+    // ✅ FORMATEAR DATOS PARA EXCEL
+    const excelData = planillados.map((p, index) => ({
+      'No.': index + 1,
+      'Cédula': p.cedula,
+      'Nombres': p.nombres,
+      'Apellidos': p.apellidos,
+      'Celular': p.celular || '',
+      'Dirección': p.direccion || '',
+      'Barrio': p.barrioVive || '',
+      'Fecha Expedición': p.fechaExpedicion ? 
+        p.fechaExpedicion.toLocaleDateString('es-CO') : '',
+      'Municipio Votación': p.municipioVotacion || '',
+      'Zona y Puesto': p.zonaPuesto || '',
+      'Mesa': p.mesa || '',
+      'Estado': p.estado === 'verificado' ? 'Verificado' : 'Pendiente',
+      'Es Edil': p.esEdil ? 'Sí' : 'No',
+      'Líder': p.lider ? `${p.lider.firstName} ${p.lider.lastName}` : '',
+      'Grupo': p.grupo ? p.grupo.name : '',
+      'Género': p.genero || '',
+      'Fecha Nacimiento': p.fechaNacimiento ? 
+        p.fechaNacimiento.toLocaleDateString('es-CO') : '',
+      'Notas': p.notas || '',
+      'Fecha Creación': p.fechaCreacion.toLocaleDateString('es-CO'),
+      'Última Actualización': p.fechaActualizacion.toLocaleDateString('es-CO')
+    }));
+
+    // ✅ CREAR LIBRO DE EXCEL
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+    // ✅ CONFIGURAR ANCHOS DE COLUMNA
+    const columnWidths = [
+      { wch: 5 },   // No.
+      { wch: 12 },  // Cédula
+      { wch: 20 },  // Nombres
+      { wch: 20 },  // Apellidos
+      { wch: 12 },  // Celular
+      { wch: 30 },  // Dirección
+      { wch: 15 },  // Barrio
+      { wch: 15 },  // Fecha Expedición
+      { wch: 18 },  // Municipio Votación
+      { wch: 15 },  // Zona y Puesto
+      { wch: 8 },   // Mesa
+      { wch: 12 },  // Estado
+      { wch: 8 },   // Es Edil
+      { wch: 25 },  // Líder
+      { wch: 15 },  // Grupo
+      { wch: 8 },   // Género
+      { wch: 15 },  // Fecha Nacimiento
+      { wch: 30 },  // Notas
+      { wch: 15 },  // Fecha Creación
+      { wch: 15 }   // Última Actualización
+    ];
+    worksheet['!cols'] = columnWidths;
+
+    // ✅ AGREGAR HOJA AL LIBRO
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Planillados');
+
+    // ✅ GENERAR BUFFER
+    const excelBuffer = XLSX.write(workbook, { 
+      type: 'buffer', 
+      bookType: 'xlsx' 
+    });
+
+    return excelBuffer;
+
+  } catch (error) {
+    throw new BadRequestException(`Error generando Excel: ${error.message}`);
   }
+}
+ 
 
   // ✅ Obtener barrios únicos
   async getUniqueBarrios(): Promise<string[]> {

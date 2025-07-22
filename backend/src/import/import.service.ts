@@ -43,7 +43,7 @@ export class ImportService {
       let data: any[] = [];
       let headers: string[] = [];
 
-      if (file.mimetype.includes('excel') || file.filename.endsWith('.xlsx') || file.filename.endsWith('.xls')) {
+      if (file.mimetype.includes('excel') || file.originalname.endsWith('.xlsx') || file.originalname.endsWith('.xls')) {
         // Procesar Excel
         const workbook = XLSX.read(file.buffer, { type: 'buffer' });
         const sheetName = workbook.SheetNames[0];
@@ -53,7 +53,7 @@ export class ImportService {
         if (data.length > 0) {
           headers = Object.keys(data[0]);
         }
-      } else if (file.mimetype.includes('csv') || file.filename.endsWith('.csv')) {
+      } else if (file.mimetype.includes('csv') || file.originalname.endsWith('.csv')) {
         // Procesar CSV
         data = await this.parseCSV(file.buffer);
         if (data.length > 0) {
@@ -763,41 +763,32 @@ export class ImportService {
 
   // ✅ MAPEAR FILA A PLANILLADO
   private mapRowToPlanillado(row: any, mappings: Record<string, string>): BulkImportPlanilladoDto {
-    const planillado: BulkImportPlanilladoDto = {
-      cedula: '',
-      nombres: '',
-      apellidos: ''
-    };
+  const planillado: BulkImportPlanilladoDto = {
+    cedula: '',
+    nombres: '',
+    apellidos: ''
+  };
 
-    for (const [csvColumn, entityField] of Object.entries(mappings)) {
-      if (row[csvColumn] !== undefined && row[csvColumn] !== null) {
-        const value = String(row[csvColumn]).trim();
-        
-        switch (entityField) {
-          case 'cedula':
-            planillado.cedula = value;
-            break;
-          case 'nombres':
-            planillado.nombres = value;
-            break;
-          case 'apellidos':
-            planillado.apellidos = value;
-            break;
-          case 'celular':
-            planillado.celular = value;
-            break;
-          case 'direccion':
-            planillado.direccion = value;
-            break;
-          case 'barrioVive':
-            planillado.barrioVive = value;
-            break;
-          case 'fechaExpedicion':
-            planillado.fechaExpedicion = value;
-            break;
-          case 'municipioVotacion':
-            planillado.municipioVotacion = value;
-            break;
+  for (const [csvColumn, entityField] of Object.entries(mappings)) {
+    if (row[csvColumn] !== undefined && row[csvColumn] !== null) {
+      let value = String(row[csvColumn]).trim();
+      
+      switch (entityField) {
+        case 'cedula':
+          planillado.cedula = value;
+          break;
+        case 'nombres':
+          planillado.nombres = this.capitalizeWords(value); // ✅ Normalizar
+          break;
+        case 'apellidos':
+          planillado.apellidos = this.capitalizeWords(value); // ✅ Normalizar
+          break;
+        case 'barrioVive':
+          planillado.barrioVive = this.normalizeBarrio(value); // ✅ Normalizar barrio
+          break;
+        case 'municipioVotacion':
+          planillado.municipioVotacion = this.capitalizeWords(value); // ✅ Normalizar
+          break;
           case 'zonaPuesto':
             planillado.zonaPuesto = value;
             break;
@@ -824,6 +815,22 @@ export class ImportService {
 
     return planillado;
   }
+  private normalizeBarrio(barrio: string): string {
+  if (!barrio) return barrio;
+  
+  // Convertir a mayúsculas y limpiar espacios
+  return barrio.trim().toUpperCase();
+}
+
+private capitalizeWords(text: string): string {
+  if (!text) return text;
+  
+  return text
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
 
   // ✅ MAPEAR FILA A VOTANTE
   private mapRowToVoter(row: any, mappings: Record<string, string>): BulkImportVoterDto {

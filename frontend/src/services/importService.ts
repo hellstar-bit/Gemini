@@ -1,6 +1,6 @@
 // frontend/src/services/importService.ts - VERSIÓN COMPLETA CON TIPADO CORREGIDO
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 // =====================================
 // TIPOS Y INTERFACES

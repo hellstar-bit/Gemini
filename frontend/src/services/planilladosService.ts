@@ -181,26 +181,48 @@ export const planilladosService = {
   },
 
   // ✅ Exportar a Excel
-  async exportToExcel(filters: PlanilladoFiltersDto = {}): Promise<Blob> {
-    try {
-      const params = new URLSearchParams(
-        Object.fromEntries(
-          Object.entries(filters).filter(([_, value]) => value !== undefined && value !== '')
-        )
-      );
+  async exportToExcel(filters: PlanilladoFiltersDto = {}): Promise<void> {
+  try {
+    // Construir parámetros de query
+    const params = new URLSearchParams();
+    
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        if (value instanceof Date) {
+          params.append(key, value.toISOString());
+        } else {
+          params.append(key, value.toString());
+        }
+      }
+    });
 
-      const response = await apiClient.get(`/planillados/export?${params}`, {
-        responseType: 'blob',
-      });
+    // ✅ HACER SOLICITUD CON RESPONSETYPE BLOB
+    const response = await apiClient.get(`/planillados/export?${params}`, {
+      responseType: 'blob', // ✅ IMPORTANTE: especificar blob
+    });
 
-      return new Blob([response.data], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      });
-    } catch (error) {
-      console.error('Error exporting planillados:', error);
-      throw new Error('Error al exportar planillados');
-    }
-  },
+    // ✅ CREAR BLOB Y DESCARGAR
+    const blob = new Blob([response.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `planillados_${new Date().toISOString().split('T')[0]}.xlsx`;
+    
+    document.body.appendChild(link);
+    link.click();
+    
+    // Limpiar
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error('Error exportando planillados:', error);
+    throw new Error('Error al exportar los datos');
+  }
+},
 
   // ✅ Obtener listas para filtros
   async getBarrios(): Promise<string[]> {

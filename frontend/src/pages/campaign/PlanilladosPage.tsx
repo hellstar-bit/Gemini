@@ -108,6 +108,8 @@ export const PlanilladosPage: React.FC = () => {
     }
   };
 
+  
+
   const handleBulkAction = async (action: string, ids: number[]) => {
     setIsLoading(true);
     setError(null);
@@ -123,8 +125,7 @@ export const PlanilladosPage: React.FC = () => {
 
       // Manejar exportación especial
       if (action === 'export') {
-        const blob = await planilladosService.exportToExcel(filters);
-        planilladosService.downloadExcel(blob);
+        await planilladosService.exportToExcel(filters);
       }
     } catch (error: any) {
       console.error('Error in bulk action:', error);

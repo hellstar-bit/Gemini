@@ -11,6 +11,7 @@ import {
   UseGuards,
   ParseIntPipe,
   BadRequestException,
+  Res,
 } from '@nestjs/common';
 import { PlanilladosService } from './planillados.service';
 import { CreatePlanilladoDto, UpdatePlanilladoDto, PlanilladoFiltersDto } from './dto/planillado.dto';
@@ -18,6 +19,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('planillados')
 @UseGuards(JwtAuthGuard)
+
 export class PlanilladosController {
   constructor(private readonly planilladosService: PlanilladosService) {}
 
@@ -81,9 +83,32 @@ export class PlanilladosController {
 
   // ✅ GET /planillados/export - Exportar a Excel
   @Get('export')
-  async exportToExcel(@Query() filters: PlanilladoFiltersDto) {
-    return this.planilladosService.exportToExcel(filters);
+async exportToExcel(
+  @Query() filters: PlanilladoFiltersDto,
+  @Res() res: any // Use 'any' for Response object to avoid type issues with express
+) {
+  try {
+    const excelBuffer = await this.planilladosService.exportToExcel(filters);
+    
+    // ✅ CONFIGURAR HEADERS CORRECTOS
+    const fileName = `planillados_${new Date().toISOString().split('T')[0]}.xlsx`;
+    
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="${fileName}"`,
+      'Content-Length': excelBuffer.length.toString(),
+    });
+
+    res.send(excelBuffer);
+    
+  } catch (error) {
+    console.error('Error exportando:', error);
+    res.status(500).json({ 
+      message: 'Error generando archivo de exportación',
+      error: error.message 
+    });
   }
+}
 
   // ✅ GET /planillados/:id - Obtener por ID
   @Get(':id')
