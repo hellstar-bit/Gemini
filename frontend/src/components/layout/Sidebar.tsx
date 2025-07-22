@@ -5,7 +5,7 @@ import { useAppSelector, useAppDispatch } from '../../store/hooks';
 import { logout } from '../../store/slices/authSlice';
 import {
   HomeIcon,
-  UsersIcon,
+  UserGroupIcon,
   CogIcon,
   ShieldCheckIcon,
   ChartBarIcon,
@@ -23,7 +23,7 @@ import {
   GlobeAltIcon,
   PresentationChartBarIcon,
   DocumentTextIcon,
-  UserGroupIcon,
+  UsersIcon,
   IdentificationIcon,
   AcademicCapIcon,
   ClipboardDocumentCheckIcon
@@ -42,7 +42,7 @@ const navigation = [
     href: '/campaign',
     icon: UsersIcon,
     description: 'Candidatos, grupos, líderes y planillados',
-    gradient: 'from-primary-500 to-primary-600',
+    gradient: 'from-indigo-500 to-indigo-600',
     children: [
       { name: 'Candidatos', href: '/campaign/candidates', icon: IdentificationIcon },
       { name: 'Grupos', href: '/campaign/groups', icon: UserGroupIcon },
@@ -190,7 +190,7 @@ export const Sidebar: React.FC = () => {
                       className="w-full flex items-center justify-between p-4 text-gray-600 hover:bg-gradient-to-r hover:from-gray-50 hover:to-primary-50 hover:text-primary-600 rounded-xl transition-all duration-300 group"
                     >
                       <div className="flex items-center space-x-4">
-                        <div className={`w-10 h-10 bg-gradient-to-br ${item.gradient} rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-300`}>
+                        <div className={`min-w-[40px] min-h-[40px] w-10 h-10 max-w-[40px] max-h-[40px] bg-gradient-to-br ${item.gradient} rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-300 flex-shrink-0`}>
                           <item.icon className="w-5 h-5 text-white" />
                         </div>
                         <div className="text-left">
