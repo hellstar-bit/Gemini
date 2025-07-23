@@ -24,19 +24,8 @@ interface ImportMappingProps {
     sampleRows: Record<string, any>[];
   };
   entityType: 'planillados' | 'voters' | 'leaders' | 'candidates' | 'groups';
-  onSubmit: (mappings: Record<string, string>) => void;
-  onMappingChange: (mappings: Record<string, string>) => void; // ✅ AGREGAR ESTA LÍNEA
-  onBack: () => void;
-}
-interface ImportMappingProps {
-  preview: {
-    data: Record<string, any>[];
-    headers: string[];
-    totalRows: number;
-    sampleRows: Record<string, any>[];
-  };
-  entityType: 'planillados' | 'voters' | 'leaders' | 'candidates' | 'groups';
-  onSubmit: (mappings: Record<string, string>) => void;
+  onSubmit: (mappings: Record<string, string>) => void; // ✅ AHORA ACEPTA MAPPINGS
+  onMappingChange: (mappings: Record<string, string>) => void;
   onBack: () => void;
 }
 
@@ -158,6 +147,7 @@ const FIELD_MAPPINGS: Record<string, FieldMapping[]> = {
 
 export const ImportMapping: React.FC<ImportMappingProps> = ({ 
   preview, 
+  onMappingChange,
   entityType, 
   onSubmit, 
   onBack 
@@ -290,18 +280,18 @@ export const ImportMapping: React.FC<ImportMappingProps> = ({
   };
 
   const handleSubmit = () => {
-    if (validateMappings()) {
-      console.log('✅ Mapeos validados, enviando:', mappings);
-      onSubmit(mappings);
-    } else {
-      dispatch(addNotification({
-        type: 'error',
-        title: 'Errores en mapeo',
-        message: 'Corrige los errores antes de continuar',
-        duration: 5000
-      }));
-    }
-  };
+  if (validateMappings()) {
+    console.log('✅ Mapeos validados, enviando:', mappings);
+    onSubmit(mappings); // ✅ Pasar los mappings directamente
+  } else {
+    dispatch(addNotification({
+      type: 'error',
+      title: 'Errores en mapeo',
+      message: 'Corrige los errores antes de continuar',
+      duration: 5000
+    }));
+  }
+};
 
   const handleReset = () => {
     setMappings({});

@@ -679,6 +679,13 @@ export class ImportService {
 
   // ✅ MAPEAR FILA A PLANILLADO
   private mapRowToPlanillado(row: any, mappings: Record<string, string>): BulkImportPlanilladoDto {
+  // ✅ VALIDACIÓN CRÍTICA TEMPRANA
+  if (!mappings || Object.keys(mappings).length === 0) {
+    console.error('❌ MAPPINGS VACÍOS RECIBIDOS EN BACKEND');
+    console.error('❌ Row data:', row);
+    throw new Error('No se recibieron mappings válidos para procesar los datos');
+  }
+
   const planillado: BulkImportPlanilladoDto = {
     cedula: '',
     nombres: '',
@@ -688,15 +695,18 @@ export class ImportService {
     grupoNombre: ''
   };
 
-  // ✅ Agregar debug logs temporalmente
+  // ✅ Debug logs mejorados
   console.log('🔍 Mapping row:', row);
   console.log('🔍 Mappings received:', mappings);
+  console.log('🔍 Mappings keys count:', Object.keys(mappings).length);
+  console.log('🔍 Available row keys:', Object.keys(row));
 
-  for (const [csvColumn, entityField] of Object.entries(mappings)) {
+  // ✅ CORREGIDO: Cambiar el orden del destructuring
+  for (const [entityField, csvColumn] of Object.entries(mappings)) {
     if (row[csvColumn] !== undefined && row[csvColumn] !== null) {
       let value = String(row[csvColumn]).trim();
       
-      // ✅ Agregar debug log
+      // ✅ Agregar debug log (ahora con el orden correcto)
       console.log(`🔍 Mapping ${csvColumn} -> ${entityField}: "${value}"`);
       
       switch (entityField) {
@@ -716,7 +726,7 @@ export class ImportService {
           planillado.direccion = value;
           break;
         case 'barrioVive':
-          planillado.barrioVive = this.normalizeBarrio ? this.normalizeBarrio(value) : value;
+          planillado.barrioVive = this.normalizeBarrio(value);
           break;
         case 'fechaExpedicion':
           planillado.fechaExpedicion = value;
@@ -725,7 +735,7 @@ export class ImportService {
           planillado.departamentoVotacion = value;
           break;
         case 'municipioVotacion':
-          planillado.municipioVotacion = this.capitalizeWords ? this.capitalizeWords(value) : value;
+          planillado.municipioVotacion = this.capitalizeWords(value);
           break;
         case 'direccionVotacion':
           planillado.direccionVotacion = value;
@@ -736,7 +746,7 @@ export class ImportService {
         case 'mesa':
           planillado.mesa = value;
           break;
-        case 'liderCedula':
+        case 'cedulaLider':
           planillado.liderCedula = value;
           break;
         case 'grupoNombre':
@@ -745,10 +755,19 @@ export class ImportService {
         case 'fechaNacimiento':
           planillado.fechaNacimiento = value;
           break;
+        case 'genero':
+          planillado.genero = value as 'M' | 'F' | 'Otro';
+          break;
+        case 'notas':
+          planillado.notas = value;
+          break;
         default:
           console.log(`⚠️ Campo no reconocido: ${entityField}`);
           break;
       }
+    } else {
+      // ✅ CORREGIDO: Log con el orden correcto
+      console.log(`⚠️ Campo vacío: ${csvColumn} -> ${entityField}`);
     }
   }
 
@@ -758,13 +777,15 @@ export class ImportService {
   return planillado;
 }
 
-// ✅ También agregar estos métodos auxiliares si no existen
+// ✅ AGREGAR ESTOS MÉTODOS AUXILIARES SI NO EXISTEN
 private capitalizeWords(text: string): string {
+  if (!text) return '';
   return text.toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
 }
 
 private normalizeBarrio(barrio: string): string {
-  return this.capitalizeWords(barrio.trim());
+  if (!barrio) return '';
+  return barrio.trim().toUpperCase(); // ✅ Todo en mayúsculas
 }
 
   // ✅ MAPEAR FILA A VOTANTE
@@ -1103,4 +1124,3 @@ private normalizeBarrio(barrio: string): string {
     });
   }
 }
-

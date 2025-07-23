@@ -189,43 +189,58 @@ export const ImportPage: React.FC = () => {
     maxFiles: 1,
     maxSize: 10 * 1024 * 1024, // 10MB
   });
+  const handleMappingChange = (mappings: Record<string, string>) => {
+  console.log('🔄 Actualizando mappings en ImportPage:', mappings);
+  console.log('🔄 Número de mappings recibidos:', Object.keys(mappings).length);
+  setState(prev => ({ ...prev, mappings }));
+};
 
   // ✅ FUNCIÓN PARA MANEJAR CAMBIOS DE MAPEO
-  const handleMappingChange = (mappings: Record<string, string>) => {
-    setState(prev => ({ ...prev, mappings }));
-  };
+  const executeImport = async (mappingsFromComponent?: Record<string, string>) => {
+  if (!state.file || !state.preview) return;
 
-  // Ejecutar importación
-  const executeImport = async () => {
-    if (!state.file || !state.preview) return;
+  // ✅ USAR LOS MAPPINGS PASADOS COMO PARÁMETRO O LOS DEL ESTADO
+  const mappingsToUse = mappingsFromComponent || state.mappings;
 
-    setState(prev => ({ ...prev, isLoading: true }));
-    setCurrentStep(3);
+  if (!mappingsToUse || Object.keys(mappingsToUse).length === 0) {
+    console.error('❌ No hay mappings definidos');
+    setState(prev => ({
+      ...prev,
+      errors: ['No se han configurado los mapeos de campos. Por favor configura los mapeos antes de continuar.']
+    }));
+    return;
+  }
 
-    try {
-      const mappingData = {
-        fileName: state.file.name,
-        entityType: 'planillados' as const, // ✅ FIJO A PLANILLADOS
-        fieldMappings: state.mappings,
-        previewData: state.preview.data,
-      };
+  setState(prev => ({ ...prev, isLoading: true }));
+  setCurrentStep(3);
 
-      const result = await importService.importPlanillados(mappingData); // ✅ MÉTODO ESPECÍFICO
-      setState(prev => ({
-        ...prev,
-        result,
-        isLoading: false,
-      }));
-      setCurrentStep(4);
-    } catch (error: any) {
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        errors: [error.message || 'Error durante la importación'],
-      }));
-      setCurrentStep(2);
-    }
-  };
+  try {
+    const mappingData = {
+      fileName: state.file.name,
+      entityType: 'planillados' as const,
+      fieldMappings: mappingsToUse, // ✅ USAR LOS MAPPINGS CORRECTOS
+      previewData: state.preview.data,
+    };
+
+    console.log('📤 Enviando al backend:', mappingData);
+    console.log('📤 FieldMappings a enviar:', mappingsToUse);
+    
+    const result = await importService.importPlanillados(mappingData);
+    setState(prev => ({
+      ...prev,
+      result,
+      isLoading: false,
+    }));
+    setCurrentStep(4);
+  } catch (error: any) {
+    setState(prev => ({
+      ...prev,
+      isLoading: false,
+      errors: [error.message || 'Error durante la importación'],
+    }));
+    setCurrentStep(2);
+  }
+};
 
   // Reiniciar proceso
   const resetImport = () => {
@@ -325,14 +340,14 @@ export const ImportPage: React.FC = () => {
   );
 
   const renderStep2 = () => (
-    <ImportMapping
-      preview={state.preview}
-      entityType="planillados" // ✅ FIJO A PLANILLADOS
-      onSubmit={executeImport} // ✅ CORREGIDO: onSubmit en lugar de onNext
-      onMappingChange={handleMappingChange} // ✅ AGREGADO: función de callback
-      onBack={() => setCurrentStep(1)}
-    />
-  );
+  <ImportMapping
+    preview={state.preview}
+    entityType="planillados"
+    onSubmit={executeImport}
+    onMappingChange={handleMappingChange} // ✅ AGREGAR ESTA LÍNEA
+    onBack={() => setCurrentStep(1)}
+  />
+);
 
   const renderStep3 = () => (
     <div className="text-center py-12">
@@ -454,3 +469,6 @@ export const ImportPage: React.FC = () => {
 };
 
 export default ImportPage;
+
+
+
