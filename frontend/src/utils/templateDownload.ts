@@ -25,7 +25,8 @@ export const TEMPLATE_CONFIGS: Record<string, TemplateConfig> = {
       'fecha de expedición',
       'municipio de votación',
       'zona y puesto',
-      'mesa'
+      'mesa',
+      'cedula lider'
     ],
     sampleData: [
       {
@@ -38,7 +39,8 @@ export const TEMPLATE_CONFIGS: Record<string, TemplateConfig> = {
         'fecha de expedición': '15/05/2010',
         'municipio de votación': 'Barranquilla',
         'zona y puesto': 'Zona 1 - Puesto 5',
-        'mesa': '001'
+        'mesa': '001',
+        'cedula lider': '87654321'
       },
       {
         'cédula': '87654321',
@@ -50,7 +52,8 @@ export const TEMPLATE_CONFIGS: Record<string, TemplateConfig> = {
         'fecha de expedición': '20/03/2008',
         'municipio de votación': 'Soledad',
         'zona y puesto': 'Zona 2 - Puesto 3',
-        'mesa': '025'
+        'mesa': '025',
+        'cedula lider': '11223344'
       },
       {
         'cédula': '11223344',
@@ -224,6 +227,7 @@ function getColumnWidth(header: string): number {
     'municipio de votación': 20,
     'zona y puesto': 18,
     'mesa': 8,
+    'cedula lider': 12, // ✅ NUEVO
     'email': 25,
     'meta de votantes': 15,
     'grupo': 15
@@ -307,6 +311,7 @@ export function validateFileStructure(headers: string[], entityType: string): {
   warnings: string[];
 } {
   const config = TEMPLATE_CONFIGS[entityType];
+  const headerLowerCase = headers.map(h => h.toLowerCase().trim());
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -317,8 +322,7 @@ export function validateFileStructure(headers: string[], entityType: string): {
 
   // Verificar headers requeridos para planillados
   if (entityType === 'planillados') {
-    const requiredHeaders = ['cédula', 'nombres', 'apellidos'];
-    const headerLowerCase = headers.map(h => h.toLowerCase().trim());
+    const requiredHeaders = ['cédula', 'nombres', 'apellidos']; // Define requiredHeaders here
 
     for (const required of requiredHeaders) {
       const found = headerLowerCase.some(h => 
@@ -341,6 +345,19 @@ export function validateFileStructure(headers: string[], entityType: string): {
       warnings.push('No se encontraron campos opcionales comunes. Verifica que el archivo tenga el formato correcto.');
     }
   }
+
+  const hasCedulaLider = headerLowerCase.some(h => 
+  (h.includes('cedula') && h.includes('lider')) ||
+  (h.includes('lider') && h.includes('cedula')) ||
+  h === 'cedula lider' ||
+  h === 'cedulalider'
+);
+
+if (hasCedulaLider) {
+  warnings.push('✨ Se detectó campo "cédula líder" - Nueva funcionalidad disponible para relación automática con líderes');
+} else {
+  warnings.push('💡 Tip: Puedes agregar una columna "cedula lider" para relacionar automáticamente con líderes existentes');
+}
 
   // Verificar que no haya headers vacíos
   const emptyHeaders = headers.filter(h => !h || h.trim() === '');
@@ -394,7 +411,13 @@ export function generateSuggestedMapping(headers: string[], entityType: string):
         mappings[header] = 'zonaPuesto';
       } else if (cleanHeader.includes('mesa')) {
         mappings[header] = 'mesa';
-      }
+      } else if (cleanHeader.includes('cedula') && cleanHeader.includes('lider')) {
+      mappings[header] = 'cedulaLider';
+    } else if (cleanHeader.includes('lider') && cleanHeader.includes('cedula')) {
+      mappings[header] = 'cedulaLider';
+    } else if (cleanHeader === 'cedula lider' || cleanHeader === 'cedulalider') {
+      mappings[header] = 'cedulaLider';
+    }
     });
   } else if (entityType === 'voters') {
     // Mapeos para voters (legacy)
@@ -443,6 +466,50 @@ export function generateSuggestedMapping(headers: string[], entityType: string):
   return mappings;
 }
 
+export function generateSampleDataWithLeaders(): any[] {
+  return [
+    {
+      'cédula': '12345678',
+      'nombres': 'Juan Carlos',
+      'apellidos': 'Pérez García',
+      'celular': '3001234567',
+      'dirección': 'Calle 123 #45-67',
+      'barrio donde vive': 'El Prado',
+      'fecha de expedición': '15/05/2010',
+      'municipio de votación': 'Barranquilla',
+      'zona y puesto': 'Zona 1 - Puesto 5',
+      'mesa': '001',
+      'cedula lider': '87654321'
+    },
+    {
+      'cédula': '87654321',
+      'nombres': 'María Fernanda',
+      'apellidos': 'González López',
+      'celular': '3009876543',
+      'dirección': 'Carrera 50 #80-25',
+      'barrio donde vive': 'La Concepción',
+      'fecha de expedición': '20/03/2008',
+      'municipio de votación': 'Soledad',
+      'zona y puesto': 'Zona 2 - Puesto 3',
+      'mesa': '025',
+      'cedula lider': '99888777'
+    },
+    {
+      'cédula': '11223344',
+      'nombres': 'Carlos Alberto',
+      'apellidos': 'Rodríguez Martínez',
+      'celular': '3151122334',
+      'dirección': 'Avenida 15 #30-45',
+      'barrio donde vive': 'Centro',
+      'fecha de expedición': '10/12/2015',
+      'municipio de votación': 'Malambo',
+      'zona y puesto': 'Zona 3 - Puesto 1',
+      'mesa': '050',
+      'cedula lider': ''
+    }
+  ];
+}
+
 // ✅ FUNCIÓN PARA LIMPIAR Y VALIDAR DATOS
 export function cleanAndValidateData(data: any[], mappings: Record<string, string>): {
   cleanData: any[];
@@ -471,7 +538,19 @@ export function cleanAndValidateData(data: any[], mappings: Record<string, strin
           } else {
             errors.push(`Fila ${index + 1}: Cédula inválida (${value})`);
           }
-        } else if (entityField === 'celular') {
+        } else if (entityField === 'cedulaLider') {
+          value = value.replace(/\D/g, ''); // Solo números
+          if (value.length === 0) {
+            // Campo vacío es válido
+            cleanRow[entityField] = null;
+          } else if (value.length >= 8 && value.length <= 10) {
+            cleanRow[entityField] = value;
+          } else {
+            warnings.push(`Fila ${index + 1}: Cédula de líder inválida (${value}). Se omitirá este campo.`);
+            cleanRow[entityField] = null;
+          }
+        }
+        else if (entityField === 'celular') {
           value = value.replace(/\D/g, ''); // Solo números
           if (value.length === 10 && value.startsWith('3')) {
             cleanRow[entityField] = value;

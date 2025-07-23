@@ -1,131 +1,44 @@
-// backend/src/planillados/dto/planillado.dto.ts
-import { IsString, IsOptional, IsBoolean, IsDateString, IsEnum, IsInt, IsNotEmpty, Length, Matches, Min } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+// backend/src/planillados/dto/planillado.dto.ts - ACTUALIZADO CON CÉDULA LÍDER
 
-// ✅ DTO para crear planillado
+import { 
+  IsString, 
+  IsOptional, 
+  IsEnum, 
+  IsBoolean, 
+  IsNumber, 
+  IsDateString,
+  IsArray,
+  Min,
+  Max,
+  Length
+} from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+
+// =====================================
+// ✅ DTO PRINCIPAL ACTUALIZADO
+// =====================================
+
 export class CreatePlanilladoDto {
-  @IsNotEmpty({ message: 'La cédula es requerida' })
   @IsString()
-  @Length(8, 10, { message: 'La cédula debe tener entre 8 y 10 dígitos' })
-  @Matches(/^\d+$/, { message: 'La cédula solo debe contener números' })
+  @Length(6, 12)
   cedula: string;
 
-  @IsNotEmpty({ message: 'Los nombres son requeridos' })
   @IsString()
-  @Length(2, 150, { message: 'Los nombres deben tener entre 2 y 150 caracteres' })
   nombres: string;
 
-  @IsNotEmpty({ message: 'Los apellidos son requeridos' })
   @IsString()
-  @Length(2, 150, { message: 'Los apellidos deben tener entre 2 y 150 caracteres' })
   apellidos: string;
 
   @IsOptional()
   @IsString()
-  @Matches(/^3\d{9}$/, { message: 'El celular debe tener 10 dígitos y empezar por 3' })
   celular?: string;
 
   @IsOptional()
   @IsString()
-  @Length(1, 255, { message: 'La dirección no puede exceder 255 caracteres' })
   direccion?: string;
 
   @IsOptional()
   @IsString()
-  @Length(1, 100, { message: 'El barrio no puede exceder 100 caracteres' })
-  barrioVive?: string;
-
-  @IsOptional()
-  @IsDateString({}, { message: 'Fecha de expedición inválida' })
-  fechaExpedicion?: string;
-
-  @IsOptional()
-  @IsString()
-  @Length(1, 100)
-  departamentoVotacion?: string;
-
-  @IsOptional()
-  @IsString()
-  @Length(1, 100)
-  municipioVotacion?: string;
-
-  @IsOptional()
-  @IsString()
-  @Length(1, 255)
-  direccionVotacion?: string;
-
-  @IsOptional()
-  @IsString()
-  @Length(1, 50)
-  zonaPuesto?: string;
-
-  @IsOptional()
-  @IsString()
-  @Length(1, 20)
-  mesa?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  @Transform(({ value }) => value === 'true' || value === true)
-  esEdil?: boolean;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1, { message: 'ID del líder inválido' })
-  @Type(() => Number)
-  liderId?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1, { message: 'ID del grupo inválido' })
-  @Type(() => Number)
-  grupoId?: number;
-
-  @IsOptional()
-  @IsDateString({}, { message: 'Fecha de nacimiento inválida' })
-  fechaNacimiento?: string;
-
-  @IsOptional()
-  @IsEnum(['M', 'F', 'Otro'], { message: 'Género debe ser M, F u Otro' })
-  genero?: 'M' | 'F' | 'Otro';
-
-  @IsOptional()
-  @IsString()
-  @Length(0, 500, { message: 'Las notas no pueden exceder 500 caracteres' })
-  notas?: string;
-}
-
-// ✅ DTO para actualizar planillado
-export class UpdatePlanilladoDto {
-  @IsOptional()
-  @IsString()
-  @Length(8, 10, { message: 'La cédula debe tener entre 8 y 10 dígitos' })
-  @Matches(/^\d+$/, { message: 'La cédula solo debe contener números' })
-  cedula?: string;
-
-  @IsOptional()
-  @IsString()
-  @Length(2, 150, { message: 'Los nombres deben tener entre 2 y 150 caracteres' })
-  nombres?: string;
-
-  @IsOptional()
-  @IsString()
-  @Length(2, 150, { message: 'Los apellidos deben tener entre 2 y 150 caracteres' })
-  apellidos?: string;
-
-  @IsOptional()
-  @IsString()
-  @Matches(/^3\d{9}$/, { message: 'El celular debe tener 10 dígitos y empezar por 3' })
-  celular?: string;
-
-  @IsOptional()
-  @IsString()
-  @Length(1, 255)
-  direccion?: string;
-
-  @IsOptional()
-  @IsString()
-  @Length(1, 100)
   barrioVive?: string;
 
   @IsOptional()
@@ -134,53 +47,38 @@ export class UpdatePlanilladoDto {
 
   @IsOptional()
   @IsString()
-  @Length(1, 100)
   departamentoVotacion?: string;
 
   @IsOptional()
   @IsString()
-  @Length(1, 100)
   municipioVotacion?: string;
 
   @IsOptional()
   @IsString()
-  @Length(1, 255)
   direccionVotacion?: string;
 
   @IsOptional()
   @IsString()
-  @Length(1, 50)
   zonaPuesto?: string;
 
   @IsOptional()
   @IsString()
-  @Length(1, 20)
   mesa?: string;
 
   @IsOptional()
-  @IsEnum(['verificado', 'pendiente'], { message: 'Estado debe ser verificado o pendiente' })
+  @IsEnum(['verificado', 'pendiente'])
   estado?: 'verificado' | 'pendiente';
 
   @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) => value === 'true' || value === true)
   esEdil?: boolean;
 
   @IsOptional()
-  @IsBoolean()
-  @Transform(({ value }) => value === 'true' || value === true)
-  actualizado?: boolean;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
+  @IsNumber()
   liderId?: number;
 
   @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
+  @IsNumber()
   grupoId?: number;
 
   @IsOptional()
@@ -193,15 +91,107 @@ export class UpdatePlanilladoDto {
 
   @IsOptional()
   @IsString()
-  @Length(0, 500)
   notas?: string;
+
+  // ✅ NUEVO CAMPO - Cédula del líder pendiente
+  @IsOptional()
+  @IsString()
+  @Length(6, 12)
+  cedulaLiderPendiente?: string;
 }
 
-// ✅ DTO para filtros de búsqueda
+export class UpdatePlanilladoDto {
+  @IsOptional()
+  @IsString()
+  @Length(6, 12)
+  cedula?: string;
+
+  @IsOptional()
+  @IsString()
+  nombres?: string;
+
+  @IsOptional()
+  @IsString()
+  apellidos?: string;
+
+  @IsOptional()
+  @IsString()
+  celular?: string;
+
+  @IsOptional()
+  @IsString()
+  direccion?: string;
+
+  @IsOptional()
+  @IsString()
+  barrioVive?: string;
+
+  @IsOptional()
+  @IsDateString()
+  fechaExpedicion?: string;
+
+  @IsOptional()
+  @IsString()
+  departamentoVotacion?: string;
+
+  @IsOptional()
+  @IsString()
+  municipioVotacion?: string;
+
+  @IsOptional()
+  @IsString()
+  direccionVotacion?: string;
+
+  @IsOptional()
+  @IsString()
+  zonaPuesto?: string;
+
+  @IsOptional()
+  @IsString()
+  mesa?: string;
+
+  @IsOptional()
+  @IsEnum(['verificado', 'pendiente'])
+  estado?: 'verificado' | 'pendiente';
+
+  @IsOptional()
+  @IsBoolean()
+  esEdil?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  liderId?: number;
+
+  @IsOptional()
+  @IsNumber()
+  grupoId?: number;
+
+  @IsOptional()
+  @IsDateString()
+  fechaNacimiento?: string;
+
+  @IsOptional()
+  @IsEnum(['M', 'F', 'Otro'])
+  genero?: 'M' | 'F' | 'Otro';
+
+  @IsOptional()
+  @IsString()
+  notas?: string;
+
+  // ✅ NUEVO CAMPO
+  @IsOptional()
+  @IsString()
+  @Length(6, 12)
+  cedulaLiderPendiente?: string;
+}
+
+// =====================================
+// ✅ DTO DE FILTROS ACTUALIZADO
+// =====================================
+
 export class PlanilladoFiltersDto {
   @IsOptional()
   @IsString()
-  @Length(1, 100)
   buscar?: string;
 
   @IsOptional()
@@ -210,18 +200,15 @@ export class PlanilladoFiltersDto {
 
   @IsOptional()
   @IsString()
-  @Length(1, 100)
   barrioVive?: string;
 
   @IsOptional()
-  @IsInt()
-  @Min(1)
+  @IsNumber()
   @Type(() => Number)
   liderId?: number;
 
   @IsOptional()
-  @IsInt()
-  @Min(1)
+  @IsNumber()
   @Type(() => Number)
   grupoId?: number;
 
@@ -235,30 +222,58 @@ export class PlanilladoFiltersDto {
   genero?: 'M' | 'F' | 'Otro';
 
   @IsOptional()
-  @IsEnum(['18-24', '25-34', '35-44', '45-54', '55-64', '65+'])
-  rangoEdad?: string;
-
-  @IsOptional()
   @IsString()
-  @Length(1, 100)
   municipioVotacion?: string;
-
-  @IsOptional()
-  @IsDateString()
-  fechaDesde?: Date;
-
-  @IsOptional()
-  @IsDateString()
-  fechaHasta?: Date;
 
   @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
   actualizado?: boolean;
+
+  @IsOptional()
+  @IsDateString()
+  fechaDesde?: string;
+
+  @IsOptional()
+  @IsDateString()
+  fechaHasta?: string;
+
+  @IsOptional()
+  @IsEnum(['18-24', '25-34', '35-44', '45-54', '55-64', '65+'])
+  rangoEdad?: '18-24' | '25-34' | '35-44' | '45-54' | '55-64' | '65+';
+
+  // ✅ NUEVOS FILTROS PARA CÉDULA LÍDER
+  @IsOptional()
+  @IsString()
+  @Length(6, 12)
+  cedulaLider?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(6, 12)
+  cedulaLiderPendiente?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  sinLider?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  conLiderPendiente?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  soloAsignados?: boolean;
 }
 
-// ✅ DTO para respuesta de estadísticas
-export interface PlanilladosStatsResponseDto {
+// =====================================
+// ✅ OTROS DTOs ACTUALIZADOS
+// =====================================
+
+export class PlanilladosStatsResponseDto {
   total: number;
   verificados: number;
   pendientes: number;
@@ -271,10 +286,15 @@ export interface PlanilladosStatsResponseDto {
   nuevosHoy: number;
   nuevosEstaSemana: number;
   actualizadosHoy: number;
+
+  // ✅ NUEVAS ESTADÍSTICAS
+  conLiderPendiente: number;
+  sinLider: number;
+  totalConLider: number;
+  porcentajeAsignacion: string;
 }
 
-// ✅ DTO para respuesta paginada
-export interface PaginatedResponseDto<T> {
+export class PaginatedResponseDto<T> {
   data: T[];
   meta: {
     total: number;
@@ -286,20 +306,14 @@ export interface PaginatedResponseDto<T> {
   };
 }
 
-// ✅ DTO para validación de planillado
-export interface ValidationResultDto {
+export class ValidationResultDto {
   isValid: boolean;
   errors: string[];
   warnings: string[];
-  suggestions: {
-    municipioVotacion?: string;
-    barrioVive?: string;
-    zonaPuesto?: string;
-  };
+  suggestions: any;
 }
 
-// ✅ DTO para verificar duplicados
-export interface DuplicateCheckDto {
+export class DuplicateCheckDto {
   exists: boolean;
   planillado?: {
     id: number;
@@ -310,19 +324,128 @@ export interface DuplicateCheckDto {
   };
 }
 
-// ✅ DTO para acciones masivas
-export class BulkActionDto {
-  @IsNotEmpty()
-  @IsEnum(['verify', 'unverify', 'delete', 'assignLeader', 'export'])
-  action: 'verify' | 'unverify' | 'delete' | 'assignLeader' | 'export';
+// =====================================
+// ✅ NUEVOS DTOs PARA CÉDULA LÍDER
+// =====================================
 
-  @IsNotEmpty()
-  @IsInt({ each: true })
-  @Min(1, { each: true })
+export class RelacionarPlanilladosPendientesDto {
+  @IsString()
+  @Length(6, 12)
+  cedulaLider: string;
+
+  @IsNumber()
+  liderId: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  planilladoIds?: number[];
+}
+
+export class PlanilladosPendientesResponseDto {
+  planillados: Array<{
+    id: number;
+    cedula: string;
+    nombres: string;
+    apellidos: string;
+    cedulaLiderPendiente: string;
+  }>;
+  total: number;
+  leader?: {
+    id: number;
+    cedula: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
+export class EstadisticasPendientesDto {
+  totalPendientes: number;
+  porCedulaLider: Record<string, number>;
+  sinLider: number;
+  resumen: string;
+}
+
+export class BulkImportPlanilladoDto {
+  @IsString()
+  @Length(6, 12)
+  cedula: string;
+
+  @IsString()
+  nombres: string;
+
+  @IsString()
+  apellidos: string;
+
+  @IsOptional()
+  @IsString()
+  celular?: string;
+
+  @IsOptional()
+  @IsString()
+  direccion?: string;
+
+  @IsOptional()
+  @IsString()
+  barrioVive?: string;
+
+  @IsOptional()
+  @IsString()
+  fechaExpedicion?: string;
+
+  @IsOptional()
+  @IsString()
+  municipioVotacion?: string;
+
+  @IsOptional()
+  @IsString()
+  zonaPuesto?: string;
+
+  @IsOptional()
+  @IsString()
+  mesa?: string;
+
+  // ✅ NUEVO CAMPO PARA IMPORTACIÓN
+  @IsOptional()
+  @IsString()
+  @Length(6, 12)
+  cedulaLider?: string;
+}
+
+// =====================================
+// ✅ DTOs PARA ACCIONES MASIVAS
+// =====================================
+
+export class BulkActionDto {
+  @IsEnum(['verify', 'unverify', 'delete', 'assignLeader', 'assignPendingLeader'])
+  action: 'verify' | 'unverify' | 'delete' | 'assignLeader' | 'assignPendingLeader';
+
+  @IsArray()
+  @IsNumber({}, { each: true })
   ids: number[];
 
   @IsOptional()
-  @IsInt()
-  @Min(1)
-  liderId?: number; // Para acción assignLeader
+  @IsNumber()
+  liderId?: number;
+
+  // ✅ NUEVO CAMPO
+  @IsOptional()
+  @IsString()
+  @Length(6, 12)
+  cedulaLider?: string;
+}
+
+export class ExportFiltersDto extends PlanilladoFiltersDto {
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  campos?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  incluirEstadisticas?: boolean;
+
+  @IsOptional()
+  @IsEnum(['xlsx', 'csv', 'pdf'])
+  formato?: 'xlsx' | 'csv' | 'pdf';
 }

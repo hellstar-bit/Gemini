@@ -40,21 +40,41 @@ Gemini
 │  │  │     ├─ jwt.strategy.js
 │  │  │     └─ jwt.strategy.js.map
 │  │  ├─ candidates
+│  │  │  ├─ candidates.controller.d.ts
+│  │  │  ├─ candidates.controller.js
+│  │  │  ├─ candidates.controller.js.map
 │  │  │  ├─ candidates.module.d.ts
 │  │  │  ├─ candidates.module.js
 │  │  │  ├─ candidates.module.js.map
+│  │  │  ├─ candidates.service.d.ts
+│  │  │  ├─ candidates.service.js
+│  │  │  ├─ candidates.service.js.map
+│  │  │  ├─ dto
+│  │  │  │  ├─ candidate.dto.d.ts
+│  │  │  │  ├─ candidate.dto.js
+│  │  │  │  └─ candidate.dto.js.map
 │  │  │  └─ entities
 │  │  │     ├─ candidate.entity.d.ts
 │  │  │     ├─ candidate.entity.js
 │  │  │     └─ candidate.entity.js.map
 │  │  ├─ groups
+│  │  │  ├─ dto
+│  │  │  │  ├─ group.dto.d.ts
+│  │  │  │  ├─ group.dto.js
+│  │  │  │  └─ group.dto.js.map
 │  │  │  ├─ entities
 │  │  │  │  ├─ group.entity.d.ts
 │  │  │  │  ├─ group.entity.js
 │  │  │  │  └─ group.entity.js.map
+│  │  │  ├─ groups.controller.d.ts
+│  │  │  ├─ groups.controller.js
+│  │  │  ├─ groups.controller.js.map
 │  │  │  ├─ groups.module.d.ts
 │  │  │  ├─ groups.module.js
-│  │  │  └─ groups.module.js.map
+│  │  │  ├─ groups.module.js.map
+│  │  │  ├─ groups.service.d.ts
+│  │  │  ├─ groups.service.js
+│  │  │  └─ groups.service.js.map
 │  │  ├─ import
 │  │  │  ├─ dto
 │  │  │  │  ├─ import.dto.d.ts
@@ -70,13 +90,23 @@ Gemini
 │  │  │  ├─ import.service.js
 │  │  │  └─ import.service.js.map
 │  │  ├─ leaders
+│  │  │  ├─ dto
+│  │  │  │  ├─ leader.dto.d.ts
+│  │  │  │  ├─ leader.dto.js
+│  │  │  │  └─ leader.dto.js.map
 │  │  │  ├─ entities
 │  │  │  │  ├─ leader.entity.d.ts
 │  │  │  │  ├─ leader.entity.js
 │  │  │  │  └─ leader.entity.js.map
+│  │  │  ├─ leaders.controller.d.ts
+│  │  │  ├─ leaders.controller.js
+│  │  │  ├─ leaders.controller.js.map
 │  │  │  ├─ leaders.module.d.ts
 │  │  │  ├─ leaders.module.js
-│  │  │  └─ leaders.module.js.map
+│  │  │  ├─ leaders.module.js.map
+│  │  │  ├─ leaders.service.d.ts
+│  │  │  ├─ leaders.service.js
+│  │  │  └─ leaders.service.js.map
 │  │  ├─ locations
 │  │  │  ├─ entities
 │  │  │  │  ├─ location.entity.d.ts
@@ -121,14 +151,10 @@ Gemini
 │  │  │  ├─ users.service.d.ts
 │  │  │  ├─ users.service.js
 │  │  │  └─ users.service.js.map
-│  │  └─ voters
-│  │     ├─ entities
-│  │     │  ├─ voter.entity.d.ts
-│  │     │  ├─ voter.entity.js
-│  │     │  └─ voter.entity.js.map
-│  │     ├─ voters.module.d.ts
-│  │     ├─ voters.module.js
-│  │     └─ voters.module.js.map
+│  │  └─ websocket
+│  │     ├─ websocket.gateway.d.ts
+│  │     ├─ websocket.gateway.js
+│  │     └─ websocket.gateway.js.map
 │  ├─ eslint.config.mjs
 │  ├─ nest-cli.json
 │  ├─ package-lock.json
@@ -156,13 +182,21 @@ Gemini
 │  │  │  └─ strategies
 │  │  │     └─ jwt.strategy.ts
 │  │  ├─ candidates
+│  │  │  ├─ candidates.controller.ts
 │  │  │  ├─ candidates.module.ts
+│  │  │  ├─ candidates.service.ts
+│  │  │  ├─ dto
+│  │  │  │  └─ candidate.dto.ts
 │  │  │  └─ entities
 │  │  │     └─ candidate.entity.ts
 │  │  ├─ groups
+│  │  │  ├─ dto
+│  │  │  │  └─ group.dto.ts
 │  │  │  ├─ entities
 │  │  │  │  └─ group.entity.ts
-│  │  │  └─ groups.module.ts
+│  │  │  ├─ groups.controller.ts
+│  │  │  ├─ groups.module.ts
+│  │  │  └─ groups.service.ts
 │  │  ├─ import
 │  │  │  ├─ dto
 │  │  │  │  └─ import.dto.ts
@@ -170,9 +204,13 @@ Gemini
 │  │  │  ├─ import.module.ts
 │  │  │  └─ import.service.ts
 │  │  ├─ leaders
+│  │  │  ├─ dto
+│  │  │  │  └─ leader.dto.ts
 │  │  │  ├─ entities
 │  │  │  │  └─ leader.entity.ts
-│  │  │  └─ leaders.module.ts
+│  │  │  ├─ leaders.controller.ts
+│  │  │  ├─ leaders.module.ts
+│  │  │  └─ leaders.service.ts
 │  │  ├─ locations
 │  │  │  ├─ entities
 │  │  │  │  └─ location.entity.ts
@@ -195,10 +233,8 @@ Gemini
 │  │  │  ├─ users.module.ts
 │  │  │  ├─ users.service.spec.ts
 │  │  │  └─ users.service.ts
-│  │  └─ voters
-│  │     ├─ entities
-│  │     │  └─ voter.entity.ts
-│  │     └─ voters.module.ts
+│  │  └─ websocket
+│  │     └─ websocket.gateway.ts
 │  ├─ test
 │  │  ├─ app.e2e-spec.ts
 │  │  └─ jest-e2e.json
@@ -222,8 +258,20 @@ Gemini
 │  │  │  │  ├─ LoginForm.tsx
 │  │  │  │  ├─ ProtectedRoute.tsx
 │  │  │  │  └─ RegisterForm.tsx
+│  │  │  ├─ candidates
+│  │  │  │  ├─ CandidateModal.tsx
+│  │  │  │  ├─ CandidatesCharts.tsx
+│  │  │  │  ├─ CandidatesFilters.tsx
+│  │  │  │  ├─ CandidatesList.tsx
+│  │  │  │  └─ CandidatesStats.tsx
 │  │  │  ├─ common
 │  │  │  │  └─ NotificationContainer.tsx
+│  │  │  ├─ groups
+│  │  │  │  ├─ GroupModal.tsx
+│  │  │  │  ├─ GroupsCharts.tsx
+│  │  │  │  ├─ GroupsFilters.tsx
+│  │  │  │  ├─ GroupsList.tsx
+│  │  │  │  └─ GroupsStats.tsx
 │  │  │  ├─ import
 │  │  │  │  ├─ DownloadTemplateButton.tsx
 │  │  │  │  ├─ SimpleDownloadButton.tsx
@@ -231,6 +279,15 @@ Gemini
 │  │  │  ├─ layout
 │  │  │  │  ├─ Layout.tsx
 │  │  │  │  └─ Sidebar.tsx
+│  │  │  ├─ leaders
+│  │  │  │  ├─ BulkActionsBar.tsx
+│  │  │  │  ├─ LeaderModal.tsx
+│  │  │  │  ├─ LeadersCharts.tsx
+│  │  │  │  ├─ LeadersFilters.tsx
+│  │  │  │  ├─ LeadersList.tsx
+│  │  │  │  └─ LeadersStats.tsx
+│  │  │  ├─ notifications
+│  │  │  │  └─ PlanilladosLiderNotification.tsx
 │  │  │  └─ planillados
 │  │  │     ├─ BulkActionsBar.tsx
 │  │  │     ├─ PlanilladoModal.tsx
@@ -240,12 +297,17 @@ Gemini
 │  │  │     ├─ PlanilladosMap.css
 │  │  │     ├─ PlanilladosMap.tsx
 │  │  │     └─ PlanilladosStats.tsx
+│  │  ├─ hooks
+│  │  │  └─ useWebSocket.ts
 │  │  ├─ index.css
 │  │  ├─ main.tsx
 │  │  ├─ pages
 │  │  │  ├─ AuthPage.tsx
 │  │  │  ├─ campaign
 │  │  │  │  ├─ CampaignPage.tsx
+│  │  │  │  ├─ CandidatesPage.tsx
+│  │  │  │  ├─ GroupsPage.tsx
+│  │  │  │  ├─ LeadersPage.tsx
 │  │  │  │  └─ PlanilladosPage.tsx
 │  │  │  ├─ ComingSoon.tsx
 │  │  │  ├─ Dashboard.tsx
@@ -253,8 +315,11 @@ Gemini
 │  │  │     └─ ImportPage.tsx
 │  │  ├─ services
 │  │  │  ├─ authService.ts
+│  │  │  ├─ candidatesService.ts
 │  │  │  ├─ geographicService.ts
+│  │  │  ├─ groupsService.ts
 │  │  │  ├─ importService.ts
+│  │  │  ├─ leadersService.ts
 │  │  │  └─ planilladosService.ts
 │  │  ├─ store
 │  │  │  ├─ hooks.ts

@@ -1,19 +1,86 @@
-// backend/src/import/dto/import.dto.ts - ACTUALIZADO CON PLANILLADOS
+// backend/src/import/dto/import.dto.ts - ACTUALIZADO
+
+import { IsString, IsOptional, IsEmail, IsDateString, IsEnum, IsBoolean, IsNumber, IsArray, ValidateNested } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+
+// ✅ DTO para importación masiva de planillados - ACTUALIZADO
+export class BulkImportPlanilladoDto {
+  @IsString()
+  cedula: string;
+
+  @IsString()
+  nombres: string;
+
+  @IsString()
+  apellidos: string;
+
+  @IsOptional()
+  @IsString()
+  celular?: string;
+
+  @IsOptional()
+  @IsString()
+  direccion?: string;
+
+  @IsOptional()
+  @IsString()
+  barrioVive?: string;
+
+  @IsOptional()
+  @IsString()
+  fechaExpedicion?: string;
+
+  @IsOptional()
+  @IsString()
+  municipioVotacion?: string;
+
+  @IsOptional()
+  @IsString()
+  zonaPuesto?: string;
+
+  @IsOptional()
+  @IsString()
+  mesa?: string;
+
+  // ✅ NUEVO CAMPO - Cédula del líder
+  @IsOptional()
+  @IsString()
+  cedulaLider?: string;
+}
+
+// ✅ NUEVO DTO - Para relacionar planillados pendientes
+export class RelacionarPlanilladosPendientesDto {
+  @IsString()
+  cedulaLider: string;
+
+  @IsNumber()
+  liderId: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  planilladoIds?: number[];
+}
+
+// DTOs existentes actualizados...
 
 export class ImportPreviewDto {
-  data: any[];
+  data: Record<string, any>[];
   headers: string[];
   totalRows: number;
-  sampleRows: any[];
+  sampleRows: Record<string, any>[];
   errors: string[];
   warnings: string[];
 }
 
 export class ImportMappingDto {
   fileName: string;
-  entityType: 'voters' | 'leaders' | 'candidates' | 'groups' | 'planillados'; // ✅ AGREGADO planillados
-  fieldMappings: Record<string, string>; // { csvColumn: entityField }
-  previewData: any[];
+  
+  @IsEnum(['voters', 'leaders', 'candidates', 'groups', 'planillados'])
+  entityType: 'voters' | 'leaders' | 'candidates' | 'groups' | 'planillados';
+  
+  fieldMappings: Record<string, string>;
+  previewData: Record<string, any>[];
 }
 
 export class ImportResultDto {
@@ -34,80 +101,20 @@ export class ImportErrorDto {
   severity: 'error' | 'warning';
 }
 
-// ✅ NUEVO - DTO para importar planillados
-export class BulkImportPlanilladoDto {
-  cedula: string;
-  nombres: string;
-  apellidos: string;
-  celular?: string;
-  direccion?: string;
-  barrioVive?: string;
-  fechaExpedicion?: string; // Formato DD/MM/YYYY en string, se convierte a Date
-  
-  // Datos de votación
-  departamentoVotacion?: string;
-  municipioVotacion?: string;
-  direccionVotacion?: string;
-  zonaPuesto?: string;
-  mesa?: string;
-  
-  // Relaciones
-  liderCedula?: string; // Para asociar con líder por cédula
-  grupoNombre?: string; // Para asociar con grupo por nombre
-  
-  // Datos adicionales
-  fechaNacimiento?: string;
-  genero?: 'M' | 'F' | 'Otro';
-  notas?: string;
-}
-
-// DTOs existentes se mantienen igual
-export class BulkImportVoterDto {
-  cedula: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  neighborhood?: string;
-  municipality?: string;
-  votingPlace?: string;
-  birthDate?: string;
-  gender?: 'M' | 'F' | 'Other';
-  leaderCedula?: string; // Para asociar con líder
-  commitment?: 'committed' | 'potential' | 'undecided' | 'opposed';
-  notes?: string;
-}
-
-export class BulkImportLeaderDto {
-  cedula: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  neighborhood?: string;
-  municipality?: string;
-  birthDate?: string;
-  gender?: 'M' | 'F' | 'Other';
-  meta?: number;
-  groupName?: string; // Para asociar con grupo
-}
-
-export class BulkImportCandidateDto {
-  name: string;
-  email: string;
-  phone?: string;
-  meta?: number;
-  description?: string;
-  position?: string;
-  party?: string;
-}
-
-export class BulkImportGroupDto {
-  name: string;
-  description?: string;
-  zone?: string;
-  meta?: number;
-  candidateName?: string; // Para asociar con candidato
+// ✅ NUEVO DTO - Respuesta de planillados pendientes
+export class PlanilladosPendientesResponseDto {
+  planillados: {
+    id: number;
+    cedula: string;
+    nombres: string;
+    apellidos: string;
+    cedulaLiderPendiente: string;
+  }[];
+  total: number;
+  leader?: {
+    id: number;
+    cedula: string;
+    firstName: string;
+    lastName: string;
+  };
 }

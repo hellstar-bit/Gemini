@@ -311,6 +311,7 @@ export interface PlanilladoFiltersDto {
   fechaDesde?: Date;
   fechaHasta?: Date;
   actualizado?: boolean;
+  cedulaLider?: string;  
 }
 
 export interface PlanilladosStatsDto {

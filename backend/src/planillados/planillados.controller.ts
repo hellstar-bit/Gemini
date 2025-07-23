@@ -12,10 +12,19 @@ import {
   ParseIntPipe,
   BadRequestException,
   Res,
+  HttpCode,
+  HttpStatus,
+  ValidationPipe,
 } from '@nestjs/common';
 import { PlanilladosService } from './planillados.service';
 import { CreatePlanilladoDto, UpdatePlanilladoDto, PlanilladoFiltersDto } from './dto/planillado.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { 
+  RelacionarPlanilladosPendientesDto,
+  PlanilladosPendientesResponseDto 
+} from '../import/dto/import.dto';
+import { Response } from 'express'; 
+
 
 @Controller('planillados')
 @UseGuards(JwtAuthGuard)
@@ -24,52 +33,7 @@ export class PlanilladosController {
   constructor(private readonly planilladosService: PlanilladosService) {}
 
   // ✅ GET /planillados - Listar con filtros y paginación
-  @Get()
-  async findAll(@Query() query: any) {
-    const {
-      page = 1,
-      limit = 20,
-      buscar,
-      estado,
-      barrioVive,
-      liderId,
-      grupoId,
-      esEdil,
-      genero,
-      rangoEdad,
-      municipioVotacion,
-      fechaDesde,
-      fechaHasta,
-      actualizado,
-      ...filters
-    } = query;
-
-    // Construir filtros
-    const filterDto: PlanilladoFiltersDto = {
-      buscar,
-      estado,
-      barrioVive,
-      liderId: liderId ? parseInt(liderId) : undefined,
-      grupoId: grupoId ? parseInt(grupoId) : undefined,
-      esEdil: esEdil === 'true' ? true : esEdil === 'false' ? false : undefined,
-      genero,
-      rangoEdad,
-      municipioVotacion,
-      fechaDesde: fechaDesde ? new Date(fechaDesde) : undefined,
-      fechaHasta: fechaHasta ? new Date(fechaHasta) : undefined,
-      actualizado: actualizado === 'true' ? true : actualizado === 'false' ? false : undefined,
-    };
-
-    const pageNumber = parseInt(page);
-    const limitNumber = parseInt(limit);
-
-    if (pageNumber < 1 || limitNumber < 1 || limitNumber > 100) {
-      throw new BadRequestException('Parámetros de paginación inválidos');
-    }
-
-    return this.planilladosService.findAll(filterDto, pageNumber, limitNumber);
-  }
-
+  
   @Get('geographic-data')
   async getGeographicData(@Query() filters: PlanilladoFiltersDto) {
   return this.planilladosService.getGeographicData(filters);
@@ -83,32 +47,40 @@ export class PlanilladosController {
 
   // ✅ GET /planillados/export - Exportar a Excel
   @Get('export')
-async exportToExcel(
-  @Query() filters: PlanilladoFiltersDto,
-  @Res() res: any // Use 'any' for Response object to avoid type issues with express
-) {
-  try {
-    const excelBuffer = await this.planilladosService.exportToExcel(filters);
-    
-    // ✅ CONFIGURAR HEADERS CORRECTOS
-    const fileName = `planillados_${new Date().toISOString().split('T')[0]}.xlsx`;
-    
-    res.set({
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="${fileName}"`,
-      'Content-Length': excelBuffer.length.toString(),
-    });
+  @HttpCode(HttpStatus.OK)
+  async exportToExcel(
+    @Query() filters: PlanilladoFiltersDto,
+    @Res() res: Response
+  ): Promise<void> {
+    try {
+      const excelBuffer = await this.planilladosService.exportToExcel(filters);
+      
+      const timestamp = new Date().toISOString().split('T')[0];
+      const hasFilters = Object.keys(filters || {}).length > 0;
+      const fileName = hasFilters 
+        ? `planillados_filtrados_${timestamp}.xlsx`
+        : `planillados_completo_${timestamp}.xlsx`;
+      
+      res.set({
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="${fileName}"`,
+        'Content-Length': excelBuffer.length.toString(),
+      });
 
-    res.send(excelBuffer);
-    
-  } catch (error) {
-    console.error('Error exportando:', error);
-    res.status(500).json({ 
-      message: 'Error generando archivo de exportación',
-      error: error.message 
-    });
+      res.status(HttpStatus.OK).send(excelBuffer);
+      
+    } catch (error) {
+      console.error('❌ Error en exportación:', error);
+      
+      if (!res.headersSent) {
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+          success: false,
+          message: 'Error al generar archivo de exportación',
+          error: error.message
+        });
+      }
+    }
   }
-}
 
   // ✅ GET /planillados/:id - Obtener por ID
   @Get(':id')
@@ -135,6 +107,108 @@ async exportToExcel(
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number) {
     return this.planilladosService.remove(id);
+  }
+
+  @Get('pendientes-lider/:cedula')
+@HttpCode(HttpStatus.OK)
+async getPlanilladosPendientesByLiderCedula(
+  @Param('cedula') cedula: string
+) {
+  try {
+    const planillados = await this.planilladosService.getPlanilladosPendientesByLiderCedula(cedula);
+    
+    return {
+      planillados: planillados.map(p => ({
+        id: p.id,
+        cedula: p.cedula,
+        nombres: p.nombres,
+        apellidos: p.apellidos,
+        cedulaLiderPendiente: p.cedulaLiderPendiente || '' // ✅ CORREGIDO - Manejar undefined
+      })),
+      total: planillados.length
+    };
+  } catch (error) {
+    throw error;
+  }
+}
+
+  /**
+   * Relacionar planillados pendientes con líder
+   * POST /planillados/relacionar-pendientes
+   */
+  @Post('relacionar-pendientes')
+@HttpCode(HttpStatus.OK)
+async relacionarPlanilladosPendientes(
+  @Body(ValidationPipe) dto: RelacionarPlanilladosPendientesDto
+): Promise<{ affected: number; message: string }> {
+  try {
+    // ✅ CORREGIDO - Desestructurar el DTO y pasar argumentos individuales
+    const result = await this.planilladosService.relacionarPlanilladosPendientes(
+      dto.cedulaLider,
+      dto.liderId,
+      dto.planilladoIds
+    );
+    
+    return {
+      affected: result.affected,
+      message: `Se relacionaron ${result.affected} planillado(s) exitosamente`
+    };
+  } catch (error) {
+    throw error;
+  }
+}
+
+  /**
+   * Obtener estadísticas de planillados pendientes
+   * GET /planillados/estadisticas-pendientes
+   */
+  @Get('estadisticas-pendientes')
+  @HttpCode(HttpStatus.OK)
+  async getEstadisticasPlanilladosPendientes(): Promise<{
+    totalPendientes: number;
+    porCedulaLider: Record<string, number>;
+    sinLider: number;
+    resumen: string;
+  }> {
+    try {
+      const stats = await this.planilladosService.getEstadisticasPlanilladosPendientes();
+      
+      return {
+        ...stats,
+        resumen: `${stats.totalPendientes} planillados pendientes de ${Object.keys(stats.porCedulaLider).length} líderes diferentes`
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Limpiar relaciones pendientes (útil para mantenimiento)
+   * POST /planillados/limpiar-pendientes
+   */
+  @Post('limpiar-pendientes')
+  @HttpCode(HttpStatus.OK)
+  async limpiarRelacionesPendientes(
+    @Body() body: { confirmar: boolean }
+  ): Promise<{ message: string; eliminados: number }> {
+    if (!body.confirmar) {
+      return {
+        message: 'Operación cancelada. Debe confirmar la acción.',
+        eliminados: 0
+      };
+    }
+
+    try {
+      // Limpiar solo planillados que tienen cédula pendiente pero el líder no existe
+      const result = await this.planilladosService.limpiarRelacionesPendientesOrfanas();
+      
+      return {
+        message: `Se limpiaron ${result.affected} relaciones pendientes órfanas`,
+        eliminados: result.affected
+      };
+    } catch (error) {
+      throw error;
+    }
   }
 
   // ✅ POST /planillados/bulk-actions - Acciones masivas

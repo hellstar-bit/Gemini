@@ -1,7 +1,6 @@
 // backend/src/planillados/planillados.service.ts
 import * as fs from 'fs';
 import * as path from 'path';
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import * as XLSX from 'xlsx'; // Importar XLSX
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder, Between, Like, In } from 'typeorm';
@@ -14,8 +13,10 @@ import {
   PaginatedResponseDto,
   ValidationResultDto,
   DuplicateCheckDto
-} from './dto/planillado.dto';
-
+} from './dto/planillado.dto';import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { DataSource, IsNull, Not } from 'typeorm'; // IsNull y Not para las nuevas consultas
+import { EventEmitter2 } from '@nestjs/event-emitter'; // Para los eventos
+import { Leader } from '../leaders/entities/leader.entity';
 // ✅ NUEVO - Interfaz para las estadísticas de un barrio
 interface BarrioStats {
   total: number;
@@ -31,9 +32,163 @@ interface BarrioStats {
 @Injectable()
 export class PlanilladosService {
   constructor(
-    @InjectRepository(Planillado)
-    private planilladoRepository: Repository<Planillado>,
-  ) {}
+  @InjectRepository(Planillado)
+  private planilladoRepository: Repository<Planillado>,
+  @InjectRepository(Leader) // ✅ NUEVO
+  private leaderRepository: Repository<Leader>,
+  private dataSource: DataSource, // ✅ NUEVO - Para transacciones
+  private eventEmitter: EventEmitter2, // ✅ NUEVO - Para eventos
+) {}
+
+  async getPlanilladosPendientesByLiderCedula(cedulaLider: string): Promise<Planillado[]> {
+    try {
+      const planillados = await this.planilladoRepository.find({
+        where: { 
+          cedulaLiderPendiente: cedulaLider,
+          liderId: IsNull() // Solo los que no tienen líder asignado aún
+        },
+        select: ['id', 'cedula', 'nombres', 'apellidos', 'cedulaLiderPendiente'],
+        order: { nombres: 'ASC', apellidos: 'ASC' }
+      });
+
+      return planillados;
+    } catch (error) {
+      throw new BadRequestException(`Error al obtener planillados pendientes: ${error.message}`);
+    }
+  }
+
+  async relacionarPlanilladosPendientes(
+    cedulaLider: string,
+    liderId: number,
+    planilladoIds?: number[]
+  ): Promise<{ affected: number }> {
+    try {
+      // Verificar que el líder existe
+      const leader = await this.leaderRepository.findOne({
+        where: { id: liderId, cedula: cedulaLider }
+      });
+
+      if (!leader) {
+        throw new NotFoundException('Líder no encontrado o cédula no coincide');
+      }
+
+      // Construir condiciones WHERE
+      const whereCondition: any = {
+        cedulaLiderPendiente: cedulaLider,
+        liderId: IsNull()
+      };
+
+      // Si se especifican IDs específicos, filtrar por ellos
+      if (planilladoIds && planilladoIds.length > 0) {
+        whereCondition.id = In(planilladoIds);
+      }
+
+      // Ejecutar actualización
+      const result = await this.planilladoRepository.update(whereCondition, {
+        liderId,
+        cedulaLiderPendiente: null, // Limpiar campo pendiente
+        actualizado: true,
+        fechaActualizacion: new Date()
+      });
+
+      console.log(`✅ Relacionados ${result.affected} planillados con líder ${leader.firstName} ${leader.lastName}`);
+
+      return { affected: result.affected || 0 };
+    } catch (error) {
+      throw new BadRequestException(`Error al relacionar planillados: ${error.message}`);
+    }
+  }
+
+  async getEstadisticasPlanilladosPendientes(): Promise<{
+    totalPendientes: number;
+    porCedulaLider: Record<string, number>;
+    sinLider: number;
+  }> {
+    try {
+      // Total con cédula líder pendiente
+      const totalPendientes = await this.planilladoRepository.count({
+        where: { 
+          cedulaLiderPendiente: Not(IsNull()),
+          liderId: IsNull()
+        }
+      });
+
+      // Agrupar por cédula líder
+      const porCedulaQuery = await this.planilladoRepository
+        .createQueryBuilder('p')
+        .select('p.cedulaLiderPendiente as cedula, COUNT(*) as cantidad')
+        .where('p.cedulaLiderPendiente IS NOT NULL')
+        .andWhere('p.liderId IS NULL')
+        .groupBy('p.cedulaLiderPendiente')
+        .getRawMany();
+
+      const porCedulaLider = porCedulaQuery.reduce((acc, item) => {
+        acc[item.cedula] = parseInt(item.cantidad);
+        return acc;
+      }, {});
+
+      // Planillados sin líder ni pendiente
+      const sinLider = await this.planilladoRepository.count({
+        where: { 
+          liderId: IsNull(),
+          cedulaLiderPendiente: IsNull()
+        }
+      });
+
+      return {
+        totalPendientes,
+        porCedulaLider,
+        sinLider
+      };
+    } catch (error) {
+      throw new BadRequestException(`Error al obtener estadísticas: ${error.message}`);
+    }
+  }
+
+  async limpiarRelacionesPendientesOrfanas(): Promise<{ affected: number }> {
+    try {
+      // Obtener todas las cédulas pendientes
+      const cedulasPendientes = await this.planilladoRepository
+        .createQueryBuilder('p')
+        .select('DISTINCT p.cedulaLiderPendiente')
+        .where('p.cedulaLiderPendiente IS NOT NULL')
+        .andWhere('p.liderId IS NULL')
+        .getRawMany();
+
+      const cedulasParaLimpiar: string[] = [];
+
+      // Verificar cuáles no tienen líder registrado
+      for (const item of cedulasPendientes) {
+        const cedula = item.p_cedulaLiderPendiente;
+        const leaderExists = await this.leaderRepository.findOne({
+          where: { cedula }
+        });
+
+        if (!leaderExists) {
+          cedulasParaLimpiar.push(cedula);
+        }
+      }
+
+      // Limpiar relaciones órfanas
+      if (cedulasParaLimpiar.length > 0) {
+        const result = await this.planilladoRepository.update(
+          { 
+            cedulaLiderPendiente: In(cedulasParaLimpiar),
+            liderId: IsNull()
+          },
+          { 
+            cedulaLiderPendiente: null 
+          }
+        );
+
+        return { affected: result.affected || 0 };
+      }
+
+      return { affected: 0 };
+    } catch (error) {
+      throw new BadRequestException(`Error al limpiar relaciones: ${error.message}`);
+    }
+  }
 
   // ✅ Obtener todos con filtros y paginación
   async findAll(
@@ -207,7 +362,22 @@ export class PlanilladosService {
       },
     });
 
+    const conLiderPendiente = await this.planilladoRepository.count({
+      where: {
+        cedulaLiderPendiente: Not(IsNull()),
+        liderId: IsNull()
+      }
+    });
+
+    const sinLider = await this.planilladoRepository.count({
+      where: {
+        liderId: IsNull(),
+        cedulaLiderPendiente: IsNull()
+      }
+    });
     return {
+      conLiderPendiente,
+      sinLider,
       total,
       verificados,
       pendientes,
@@ -360,6 +530,7 @@ export class PlanilladosService {
       'Estado': p.estado === 'verificado' ? 'Verificado' : 'Pendiente',
       'Es Edil': p.esEdil ? 'Sí' : 'No',
       'Líder': p.lider ? `${p.lider.firstName} ${p.lider.lastName}` : '',
+      'Cédula Líder Pendiente': p.cedulaLiderPendiente || '',
       'Grupo': p.grupo ? p.grupo.name : '',
       'Género': p.genero || '',
       'Fecha Nacimiento': p.fechaNacimiento ? 
@@ -389,6 +560,7 @@ export class PlanilladosService {
       { wch: 12 },  // Estado
       { wch: 8 },   // Es Edil
       { wch: 25 },  // Líder
+      { wch: 12 },  // ✅ NUEVO - Cédula Líder Pendiente
       { wch: 15 },  // Grupo
       { wch: 8 },   // Género
       { wch: 15 },  // Fecha Nacimiento
@@ -684,6 +856,23 @@ private async getBarrioStatistics(filters: PlanilladoFiltersDto): Promise<Record
     // Filtro por líder
     if (filters.liderId) {
       queryBuilder.andWhere('planillado.liderId = :liderId', { liderId: filters.liderId });
+    }
+
+    if (filters.cedulaLiderPendiente) {
+      queryBuilder.andWhere('planillado.cedulaLiderPendiente = :cedulaLiderPendiente', { 
+        cedulaLiderPendiente: filters.cedulaLiderPendiente 
+      });
+    }
+
+    // Filtro para planillados sin líder
+    if (filters.sinLider) {
+      queryBuilder.andWhere('planillado.liderId IS NULL');
+    }
+
+    // Filtro para planillados con líder pendiente
+    if (filters.conLiderPendiente) {
+      queryBuilder.andWhere('planillado.cedulaLiderPendiente IS NOT NULL')
+                .andWhere('planillado.liderId IS NULL');
     }
 
     // Filtro por grupo

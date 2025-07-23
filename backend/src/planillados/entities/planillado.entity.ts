@@ -1,172 +1,162 @@
-// backend/src/planillados/entities/planillado.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+// backend/src/planillados/entities/planillado.entity.ts - ACTUALIZADO
+
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
+} from 'typeorm';
 import { Leader } from '../../leaders/entities/leader.entity';
 import { Group } from '../../groups/entities/group.entity';
 
 @Entity('planillados')
+@Index(['cedula'], { unique: true })
+@Index(['cedulaLiderPendiente']) // ✅ NUEVO - Índice para búsquedas rápidas
 export class Planillado {
   @PrimaryGeneratedColumn()
   id: number;
 
-  // ✅ DATOS PERSONALES
+  // =====================================
+  // DATOS PERSONALES
+  // =====================================
   @Column({ type: 'varchar', length: 20, unique: true })
   cedula: string;
 
-  @Column({ type: 'varchar', length: 150 })
+  @Column({ type: 'varchar', length: 100 })
   nombres: string;
 
-  @Column({ type: 'varchar', length: 150 })
+  @Column({ type: 'varchar', length: 100 })
   apellidos: string;
 
-  @Column({ type: 'varchar', length: 20, nullable: true })
+  @Column({ type: 'varchar', length: 15, nullable: true })
   celular?: string;
 
   @Column({ type: 'text', nullable: true })
   direccion?: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
-  barrioVive?: string; // ✅ Barrio donde vive
+  barrioVive?: string;
 
   @Column({ type: 'date', nullable: true })
-  fechaExpedicion?: Date; // ✅ Fecha de expedición
+  fechaExpedicion?: Date;
 
-  // ✅ DATOS DE VOTACIÓN
+  // =====================================
+  // DATOS DE VOTACIÓN
+  // =====================================
   @Column({ type: 'varchar', length: 100, nullable: true })
-  departamentoVotacion?: string; // ✅ Departamento de votación
+  departamentoVotacion?: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
-  municipioVotacion?: string; // ✅ Municipio de votación
+  municipioVotacion?: string;
 
   @Column({ type: 'text', nullable: true })
-  direccionVotacion?: string; // ✅ Dirección de votación
+  direccionVotacion?: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  zonaPuesto?: string; // ✅ Zona y puesto
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  zonaPuesto?: string;
 
-  @Column({ type: 'varchar', length: 20, nullable: true })
-  mesa?: string; // ✅ Mesa de votación
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  mesa?: string;
 
-  // ✅ ESTADO Y CLASIFICACIÓN
-  @Column({ type: 'enum', enum: ['verificado', 'pendiente'], default: 'pendiente' })
-  estado: 'verificado' | 'pendiente'; // ✅ Solo estos dos estados
+  // =====================================
+  // ESTADO Y CLASIFICACIÓN
+  // =====================================
+  @Column({
+    type: 'enum',
+    enum: ['verificado', 'pendiente'],
+    default: 'pendiente',
+  })
+  estado: 'verificado' | 'pendiente';
 
   @Column({ type: 'boolean', default: false })
-  esEdil: boolean; // ✅ Si es edil o no
+  esEdil: boolean;
 
-  @Column({ type: 'boolean', default: true })
-  actualizado: boolean; // ✅ Estado de actualización
+  @Column({ type: 'boolean', default: false })
+  actualizado: boolean;
 
-  // ✅ RELACIONES
-  @Column({ name: 'leader_id', nullable: true })
+  // =====================================
+  // RELACIONES
+  // =====================================
+  @Column({ nullable: true })
   liderId?: number;
 
-  @ManyToOne(() => Leader, leader => leader.planillados, { nullable: true })
-  @JoinColumn({ name: 'leader_id' })
+  @ManyToOne(() => Leader, { nullable: true })
+  @JoinColumn({ name: 'liderId' })
   lider?: Leader;
 
-  @Column({ name: 'group_id', nullable: true })
+  @Column({ nullable: true })
   grupoId?: number;
 
-  @ManyToOne(() => Group, group => group.planillados, { nullable: true })
-  @JoinColumn({ name: 'group_id' })
+  @ManyToOne(() => Group, { nullable: true })
+  @JoinColumn({ name: 'grupoId' })
   grupo?: Group;
 
-  // ✅ DATOS ADICIONALES PARA ANÁLISIS
-  @Column({ type: 'date', nullable: true })
-  fechaNacimiento?: Date; // Para análisis por edad
+  // ✅ NUEVO CAMPO - Cédula del líder pendiente de relacionar
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  cedulaLiderPendiente?: string;
 
-  @Column({ type: 'enum', enum: ['M', 'F', 'Otro'], nullable: true })
-  genero?: 'M' | 'F' | 'Otro'; // Para análisis por género
+  // =====================================
+  // DATOS ADICIONALES
+  // =====================================
+  @Column({ type: 'date', nullable: true })
+  fechaNacimiento?: Date;
+
+  @Column({
+    type: 'enum',
+    enum: ['M', 'F', 'Otro'],
+    nullable: true,
+  })
+  genero?: 'M' | 'F' | 'Otro';
 
   @Column({ type: 'text', nullable: true })
   notas?: string;
 
-  // ✅ TIMESTAMPS
-  @CreateDateColumn()
+  // =====================================
+  // TIMESTAMPS
+  // =====================================
+  @CreateDateColumn({ name: 'fechaCreacion' })
   fechaCreacion: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'fechaActualizacion' })
   fechaActualizacion: Date;
 
-  // ✅ CAMPOS CALCULADOS (Getters)
+  // =====================================
+  // CAMPOS CALCULADOS (Virtual)
+  // =====================================
   get nombreCompleto(): string {
     return `${this.nombres} ${this.apellidos}`;
   }
 
   get edad(): number | null {
     if (!this.fechaNacimiento) return null;
+    
     const today = new Date();
     const birthDate = new Date(this.fechaNacimiento);
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
+    
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
+    
     return age;
   }
 
   get rangoEdad(): string {
     const edad = this.edad;
-    if (!edad) return 'Sin definir';
-    if (edad < 25) return '18-24';
-    if (edad < 35) return '25-34';
-    if (edad < 45) return '35-44';
-    if (edad < 55) return '45-54';
-    if (edad < 65) return '55-64';
-    return '65+';
+    if (!edad) return 'No especificado';
+    
+    if (edad >= 18 && edad <= 24) return '18-24';
+    if (edad >= 25 && edad <= 34) return '25-34';
+    if (edad >= 35 && edad <= 44) return '35-44';
+    if (edad >= 45 && edad <= 54) return '45-54';
+    if (edad >= 55 && edad <= 64) return '55-64';
+    if (edad >= 65) return '65+';
+    
+    return 'No válido';
   }
-}
-
-// ✅ DTO para crear/actualizar planillado
-export interface CreatePlanilladoDto {
-  cedula: string;
-  nombres: string;
-  apellidos: string;
-  celular?: string;
-  direccion?: string;
-  barrioVive?: string;
-  fechaExpedicion?: Date;
-  departamentoVotacion?: string;
-  municipioVotacion?: string;
-  direccionVotacion?: string;
-  zonaPuesto?: string;
-  mesa?: string;
-  esEdil?: boolean;
-  liderId?: number;
-  grupoId?: number;
-  fechaNacimiento?: Date;
-  genero?: 'M' | 'F' | 'Otro';
-  notas?: string;
-}
-
-// ✅ DTO para filtros y búsqueda
-export interface PlanilladoFiltersDto {
-  buscar?: string; // Búsqueda general
-  estado?: 'verificado' | 'pendiente';
-  barrioVive?: string;
-  liderId?: number;
-  grupoId?: number;
-  esEdil?: boolean;
-  genero?: 'M' | 'F' | 'Otro';
-  rangoEdad?: string;
-  municipioVotacion?: string;
-  fechaDesde?: Date;
-  fechaHasta?: Date;
-  actualizado?: boolean;
-}
-
-// ✅ DTO para estadísticas
-export interface PlanilladosStatsDto {
-  total: number;
-  verificados: number;
-  pendientes: number;
-  ediles: number;
-  porBarrio: Record<string, number>;
-  porGenero: Record<string, number>;
-  porEdad: Record<string, number>;
-  porLider: Record<string, number>;
-  porGrupo: Record<string, number>;
-  nuevosHoy: number;
-  nuevosEstaSemana: number;
-  actualizadosHoy: number;
 }

@@ -2,7 +2,7 @@
 import axios from 'axios';
 import type { 
   Planillado, 
-  PlanilladoFiltersDto, 
+  PlanilladoFiltersDto,
   PlanilladosStatsDto 
 } from '../pages/campaign/PlanilladosPage';
 
@@ -40,6 +40,36 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+interface PlanilladosPendientesResponse {
+  planillados: Array<{
+    id: number;
+    cedula: string;
+    nombres: string;
+    apellidos: string;
+    cedulaLiderPendiente: string;
+  }>;
+  total: number;
+  leader?: {
+    id: number;
+    cedula: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
+interface RelacionarPlanilladosRequest {
+  cedulaLider: string;
+  liderId: number;
+  planilladoIds?: number[];
+}
+
+interface EstadisticasPendientesResponse {
+  totalPendientes: number;
+  porCedulaLider: Record<string, number>;
+  sinLider: number;
+  resumen: string;
+}
 
 // Interfaces para respuestas
 interface PaginatedResponse<T> {
@@ -117,6 +147,163 @@ export const planilladosService = {
     }
   },
 
+  async getPlanilladosPendientesByLiderCedula(cedulaLider: string): Promise<PlanilladosPendientesResponse> {
+    try {
+      const response = await apiClient.get(`/planillados/pendientes-lider/${encodeURIComponent(cedulaLider)}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Error al obtener planillados pendientes:', error);
+      throw new Error(error.response?.data?.message || 'Error al obtener planillados pendientes');
+    }
+  },
+
+  
+
+  /**
+   * Relacionar planillados pendientes con líder
+   */
+  async relacionarPlanilladosPendientes(
+    cedulaLider: string, 
+    liderId: number, 
+    planilladoIds?: number[]
+  ): Promise<{ affected: number; message: string }> {
+    try {
+      const payload: RelacionarPlanilladosRequest = {
+        cedulaLider,
+        liderId,
+        planilladoIds
+      };
+
+      const response = await apiClient.post('/planillados/relacionar-pendientes', payload);
+      
+      console.log(`✅ Relacionados ${response.data.affected} planillados exitosamente`);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Error al relacionar planillados:', error);
+      throw new Error(error.response?.data?.message || 'Error al relacionar planillados');
+    }
+  },
+
+  async verificarPlanilladosPendientes(cedulaLider: string): Promise<{
+    tienePendientes: boolean;
+    cantidad: number;
+    planillados: Array<{ id: number; nombreCompleto: string; cedula: string }>;
+  }> {
+    try {
+      const response = await this.getPlanilladosPendientesByLiderCedula(cedulaLider);
+      
+      return {
+        tienePendientes: response.total > 0,
+        cantidad: response.total,
+        planillados: response.planillados.map(p => ({
+          id: p.id,
+          nombreCompleto: `${p.nombres} ${p.apellidos}`,
+          cedula: p.cedula
+        }))
+      };
+    } catch (error) {
+      console.error('❌ Error verificando planillados pendientes:', error);
+      return {
+        tienePendientes: false,
+        cantidad: 0,
+        planillados: []
+      };
+    }
+  },
+
+  async getResumenPorEstadoLider(): Promise<{
+    conLider: number;
+    pendientes: number;
+    sinLider: number;
+    total: number;
+    porcentajes: {
+      conLider: string;
+      pendientes: string;
+      sinLider: string;
+    };
+  }> {
+    try {
+      const [estadisticas, statsGenerales] = await Promise.all([
+        this.getEstadisticasPlanilladosPendientes(),
+        this.getStats({}) // Usar filtros vacíos para obtener stats generales
+      ]);
+
+      const total = statsGenerales.total;
+      const pendientes = estadisticas.totalPendientes;
+      const sinLider = estadisticas.sinLider;
+      const conLider = total - pendientes - sinLider;
+
+      return {
+        conLider,
+        pendientes,
+        sinLider,
+        total,
+        porcentajes: {
+          conLider: ((conLider / total) * 100).toFixed(1),
+          pendientes: ((pendientes / total) * 100).toFixed(1),
+          sinLider: ((sinLider / total) * 100).toFixed(1)
+        }
+      };
+    } catch (error) {
+      console.error('❌ Error obteniendo resumen por estado líder:', error);
+      throw error;
+    }
+  },
+
+  async buscarPorCedulaLider(cedulaLider: string): Promise<{
+    asignados: any[];
+    pendientes: any[];
+    totalAsignados: number;
+    totalPendientes: number;
+  }> {
+    try {
+      // Buscar asignados (con relación activa)
+      const asignadosResponse = await this.getAll({
+        liderId: undefined, // Se filtrará en el backend por cédula del líder
+        cedulaLider: cedulaLider // Parámetro nuevo para filtrar por cédula
+      });
+
+      // Buscar pendientes
+      const pendientesResponse = await this.getPlanilladosPendientesByLiderCedula(cedulaLider);
+
+      return {
+        asignados: asignadosResponse.data || [],
+        pendientes: pendientesResponse.planillados || [],
+        totalAsignados: asignadosResponse.meta?.total || 0,
+        totalPendientes: pendientesResponse.total || 0
+      };
+    } catch (error) {
+      console.error('❌ Error buscando por cédula líder:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Obtener estadísticas de planillados pendientes
+   */
+  async getEstadisticasPlanilladosPendientes(): Promise<EstadisticasPendientesResponse> {
+    try {
+      const response = await apiClient.get('/planillados/estadisticas-pendientes');
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Error al obtener estadísticas pendientes:', error);
+      throw new Error(error.response?.data?.message || 'Error al obtener estadísticas');
+    }
+  },
+
+  /**
+   * Limpiar relaciones pendientes órfanas (para mantenimiento)
+   */
+  async limpiarRelacionesPendientes(confirmar: boolean = false): Promise<{ message: string; eliminados: number }> {
+    try {
+      const response = await apiClient.post('/planillados/limpiar-pendientes', { confirmar });
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Error al limpiar relaciones pendientes:', error);
+      throw new Error(error.response?.data?.message || 'Error al limpiar relaciones pendientes');
+    }
+  },
+
   // ✅ Obtener planillado por ID
   async getById(id: number): Promise<Planillado> {
     try {
@@ -182,48 +369,57 @@ export const planilladosService = {
 
   // ✅ Exportar a Excel
   async exportToExcel(filters: PlanilladoFiltersDto = {}): Promise<void> {
-  try {
-    // Construir parámetros de query
-    const params = new URLSearchParams();
-    
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        if (value instanceof Date) {
-          params.append(key, value.toISOString());
-        } else {
-          params.append(key, value.toString());
+    try {
+      // Construir parámetros de query
+      const params = new URLSearchParams();
+      
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          if (value instanceof Date) {
+            params.append(key, value.toISOString());
+          } else {
+            params.append(key, value.toString());
+          }
         }
-      }
-    });
+      });
 
-    // ✅ HACER SOLICITUD CON RESPONSETYPE BLOB
-    const response = await apiClient.get(`/planillados/export?${params}`, {
-      responseType: 'blob', // ✅ IMPORTANTE: especificar blob
-    });
+      // ✅ HACER SOLICITUD CON RESPONSETYPE BLOB
+      const response = await apiClient.get(`/planillados/export?${params}`, {
+        responseType: 'blob', // ✅ IMPORTANTE: especificar blob
+      });
 
-    // ✅ CREAR BLOB Y DESCARGAR
-    const blob = new Blob([response.data], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    });
+      // ✅ CREAR BLOB Y DESCARGAR
+      const blob = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
 
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `planillados_${new Date().toISOString().split('T')[0]}.xlsx`;
-    
-    document.body.appendChild(link);
-    link.click();
-    
-    // Limpiar
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Nombre de archivo con timestamp y filtros aplicados
+      const timestamp = new Date().toISOString().split('T')[0];
+      const hasFilters = Object.keys(filters).length > 0;
+      const fileName = hasFilters 
+        ? `planillados_filtrados_${timestamp}.xlsx`
+        : `planillados_completo_${timestamp}.xlsx`;
+      
+      link.download = fileName;
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
-  } catch (error) {
-    console.error('Error exportando planillados:', error);
-    throw new Error('Error al exportar los datos');
-  }
-},
+      console.log(`✅ Exportación completada: ${fileName}`);
 
+    } catch (error: any) {
+      console.error('❌ Error exportando planillados:', error);
+      throw new Error(error.response?.data?.message || 'Error al exportar los datos');
+    }
+  },
   // ✅ Obtener listas para filtros
   async getBarrios(): Promise<string[]> {
     try {

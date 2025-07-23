@@ -11,6 +11,7 @@ import { CandidatesModule } from './candidates/candidates.module';
 import { GroupsModule } from './groups/groups.module';
 import { ImportModule } from './import/import.module';
 import { PlanilladosModule } from './planillados/planillados.module'; // ✅ NUEVO
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 // Entidades
 import { User } from './users/entities/user.entity';
@@ -21,6 +22,17 @@ import { Planillado } from './planillados/entities/planillado.entity'; // ✅ NU
 
 @Module({
   imports: [
+
+    EventEmitterModule.forRoot({
+      // Configuración opcional
+      wildcard: false,
+      delimiter: '.',
+      newListener: false,
+      removeListener: false,
+      maxListeners: 10,
+      verboseMemoryLeak: false,
+      ignoreErrors: false,
+    }),
     // Configuración
     ConfigModule.forRoot({
       isGlobal: true,

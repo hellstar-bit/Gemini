@@ -29,6 +29,7 @@
     "react-redux": "^9.2.0",
     "react-router-dom": "^6.30.1",
     "recharts": "^3.1.0",
+    "socket.io-client": "^4.8.1",
     "tailwind-merge": "^3.3.1",
     "xlsx": "^0.18.5",
     "zod": "^3.25.76"
@@ -36,9 +37,11 @@
   "devDependencies": {
     "@eslint/js": "^9.30.1",
     "@types/leaflet": "^1.9.20",
+    "@types/node": "^24.1.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@types/react-router-dom": "^5.3.3",
+    "@types/socket.io-client": "^1.4.36",
     "@typescript-eslint/eslint-plugin": "^8.37.0",
     "@typescript-eslint/parser": "^8.37.0",
     "@vitejs/plugin-react": "^4.6.0",

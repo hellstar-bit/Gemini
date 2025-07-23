@@ -81,8 +81,6 @@ export interface Leader {
 // Planillado (entidad principal)
 export interface Planillado {
   id: number;
-  
-  // Datos personales
   cedula: string;
   nombres: string;
   apellidos: string;
@@ -90,33 +88,26 @@ export interface Planillado {
   direccion?: string;
   barrioVive?: string;
   fechaExpedicion?: Date;
-  
-  // Datos de votación
   departamentoVotacion?: string;
   municipioVotacion?: string;
   direccionVotacion?: string;
   zonaPuesto?: string;
   mesa?: string;
-  
-  // Estado y clasificación
   estado: 'verificado' | 'pendiente';
   esEdil: boolean;
   actualizado: boolean;
-  
-  // Relaciones
   liderId?: number;
   lider?: Leader;
   grupoId?: number;
   grupo?: Group;
-  
-  // Datos adicionales
   fechaNacimiento?: Date;
   genero?: 'M' | 'F' | 'Otro';
   notas?: string;
-  
-  // Timestamps
   fechaCreacion: Date;
   fechaActualizacion: Date;
+  
+  // ✅ NUEVO CAMPO
+  cedulaLiderPendiente?: string;
   
   // Campos calculados
   nombreCompleto?: string;
@@ -178,11 +169,18 @@ export interface PlanilladoFiltersDto {
   grupoId?: number;
   esEdil?: boolean;
   genero?: 'M' | 'F' | 'Otro';
-  rangoEdad?: string;
   municipioVotacion?: string;
-  fechaDesde?: Date;
-  fechaHasta?: Date;
   actualizado?: boolean;
+  fechaDesde?: string;
+  fechaHasta?: string;
+  rangoEdad?: '18-24' | '25-34' | '35-44' | '45-54' | '55-64' | '65+';
+  
+  // ✅ NUEVOS CAMPOS
+  cedulaLider?: string;
+  cedulaLiderPendiente?: string;
+  sinLider?: boolean;
+  conLiderPendiente?: boolean;
+  soloAsignados?: boolean;
 }
 
 // Filtros para líderes
@@ -644,11 +642,18 @@ export interface PlanilladoFiltersDto {
   grupoId?: number;
   esEdil?: boolean;
   genero?: 'M' | 'F' | 'Otro';
-  rangoEdad?: string;
   municipioVotacion?: string;
-  fechaDesde?: Date;
-  fechaHasta?: Date;
   actualizado?: boolean;
+  fechaDesde?: string;
+  fechaHasta?: string;
+  rangoEdad?: '18-24' | '25-34' | '35-44' | '45-54' | '55-64' | '65+';
+  
+  // ✅ NUEVOS CAMPOS
+  cedulaLider?: string;
+  cedulaLiderPendiente?: string;
+  sinLider?: boolean;
+  conLiderPendiente?: boolean;
+  soloAsignados?: boolean;
 }
 
 // Filtros para líderes
