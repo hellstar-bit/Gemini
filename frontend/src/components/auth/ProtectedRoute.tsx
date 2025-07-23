@@ -1,5 +1,6 @@
-// frontend/src/components/auth/ProtectedRoute.tsx - VERSION FINAL
-import React, { useEffect } from 'react';
+// frontend/src/components/auth/ProtectedRoute.tsx - VERSIÓN ORIGINAL ARREGLADA
+
+import React, { useEffect, useCallback } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../store/hooks';
 import { verifyToken, logout, setInitialized } from '../../store/slices/authSlice';
@@ -19,35 +20,36 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const location = useLocation();
   const { user, token, isLoading, isInitialized } = useAppSelector((state) => state.auth);
 
-  useEffect(() => {
-    const initializeAuth = async () => {
-      // Si ya está inicializado, no hacer nada
-      if (isInitialized) {
+  // ✅ Memoizar la función para evitar recreaciones
+  const initializeAuth = useCallback(async () => {
+    // Si ya está inicializado, no hacer nada
+    if (isInitialized) {
+      return;
+    }
+
+    try {
+      // Si no hay token, marcar como inicializado y salir
+      if (!token) {
+        dispatch(setInitialized());
         return;
       }
 
-      try {
-        // Si no hay token, marcar como inicializado y salir
-        if (!token) {
-          dispatch(setInitialized());
-          return;
-        }
-
-        // Si hay token pero no usuario, verificar token
-        if (token && !user) {
-          await dispatch(verifyToken(token)).unwrap();
-        } else {
-          // Si ya hay usuario y token, solo marcar como inicializado
-          dispatch(setInitialized());
-        }
-      } catch (error) {
-        console.error('Error verificando token:', error);
-        dispatch(logout());
+      // Si hay token pero no usuario, verificar token
+      if (token && !user) {
+        await dispatch(verifyToken(token)).unwrap();
+      } else {
+        // Si ya hay usuario y token, solo marcar como inicializado
+        dispatch(setInitialized());
       }
-    };
-
-    initializeAuth();
+    } catch (error) {
+      console.error('Error verificando token:', error);
+      dispatch(logout());
+    }
   }, [token, user, dispatch, isInitialized]);
+
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]); // ✅ Solo depende de la función memoizada
 
   // Mostrar loading durante verificación inicial
   if (!isInitialized || isLoading) {

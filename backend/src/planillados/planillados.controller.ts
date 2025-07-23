@@ -24,6 +24,18 @@ import {
   PlanilladosPendientesResponseDto 
 } from '../import/dto/import.dto';
 import { Response } from 'express'; 
+import { Planillado } from './entities/planillado.entity';
+interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+}
 
 
 @Controller('planillados')
@@ -37,6 +49,43 @@ export class PlanilladosController {
   @Get('geographic-data')
   async getGeographicData(@Query() filters: PlanilladoFiltersDto) {
   return this.planilladosService.getGeographicData(filters);
+}
+  @Get()
+async findAll(
+  @Query() query: any
+): Promise<PaginatedResponse<Planillado>> {
+  const {
+    page = 1,
+    limit = 20,
+    buscar,
+    isVerified,
+    barrio,
+    municipio,
+    genero,
+    edadMin,
+    edadMax,
+    fechaDesde,
+    fechaHasta,
+    liderId,
+    ...filters
+  } = query;
+
+  // Construir filtros
+  const filterDto: PlanilladoFiltersDto = {
+    buscar,
+    isVerified: isVerified === 'true' ? true : isVerified === 'false' ? false : undefined,
+    barrio,
+    municipio, 
+    genero,
+    edadMin: edadMin ? parseInt(edadMin) : undefined,
+    edadMax: edadMax ? parseInt(edadMax) : undefined,
+    fechaDesde: fechaDesde ? new Date(fechaDesde) : undefined,
+    fechaHasta: fechaHasta ? new Date(fechaHasta) : undefined,
+    liderId: liderId ? parseInt(liderId) : undefined,
+    ...filters
+  };
+
+  return this.planilladosService.findAll(filterDto, parseInt(page), parseInt(limit));
 }
 
   // ✅ GET /planillados/stats - Estadísticas

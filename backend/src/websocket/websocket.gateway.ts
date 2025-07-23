@@ -1,4 +1,4 @@
-// backend/src/websocket/websocket.gateway.ts
+// backend/src/websocket/websocket.gateway.ts - CORS CORREGIDO
 
 import { WebSocketServer,
   WebSocketGateway,
@@ -13,7 +13,7 @@ import { Logger } from '@nestjs/common';
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173', // ✅ CAMBIAR AQUÍ
     credentials: true,
   },
   namespace: '/notifications', // Namespace específico para notificaciones
@@ -31,6 +31,7 @@ export class WebsocketGateway implements OnGatewayInit, OnGatewayConnection, OnG
 
   afterInit(server: Server) {
     this.logger.log('✅ WebSocket Gateway inicializado');
+    this.logger.log(`🔌 CORS configurado para: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
   }
 
   handleConnection(client: Socket) {

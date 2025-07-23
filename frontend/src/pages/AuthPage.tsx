@@ -1,3 +1,5 @@
+// frontend/src/pages/AuthPage.tsx - VERSIÓN ORIGINAL RESTAURADA
+
 import React, { useState } from 'react';
 import { LoginForm } from '../components/auth/LoginForm';
 import { RegisterForm } from '../components/auth/RegisterForm';
@@ -30,32 +32,35 @@ export const AuthPage: React.FC = () => {
             Plataforma de Gestión Política y Electoral. 
             Organiza, analiza y optimiza tu campaña electoral con tecnología de vanguardia.
           </p>
-          
-          <div className="grid grid-cols-2 gap-4 text-left mb-8">
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <span className="text-white text-xl">📊</span>
+
+          <div className="grid grid-cols-2 gap-4 mb-8">
+            <div className="bg-white/70 backdrop-blur-sm rounded-xl p-4 text-center">
+              <div className="w-8 h-8 bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg mx-auto mb-2 flex items-center justify-center">
+                <span className="text-white text-sm font-bold">📊</span>
               </div>
               <h3 className="font-bold text-gray-900 mb-2">Analytics</h3>
-              <p className="text-sm text-gray-600">Estadísticas en tiempo real y reportes detallados</p>
+              <p className="text-sm text-gray-600">Datos en tiempo real</p>
             </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group">
-              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <span className="text-white text-xl">🗺️</span>
+
+            <div className="bg-white/70 backdrop-blur-sm rounded-xl p-4 text-center">
+              <div className="w-8 h-8 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg mx-auto mb-2 flex items-center justify-center">
+                <span className="text-white text-sm font-bold">🗺️</span>
               </div>
               <h3 className="font-bold text-gray-900 mb-2">Mapas</h3>
-              <p className="text-sm text-gray-600">Visualización geográfica interactiva</p>
+              <p className="text-sm text-gray-600">Visualización territorial</p>
             </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <span className="text-white text-xl">👥</span>
+
+            <div className="bg-white/70 backdrop-blur-sm rounded-xl p-4 text-center">
+              <div className="w-8 h-8 bg-gradient-to-r from-accent-500 to-accent-600 rounded-lg mx-auto mb-2 flex items-center justify-center">
+                <span className="text-white text-sm font-bold">👥</span>
               </div>
-              <h3 className="font-bold text-gray-900 mb-2">Gestión</h3>
-              <p className="text-sm text-gray-600">Candidatos, grupos y líderes</p>
+              <h3 className="font-bold text-gray-900 mb-2">Votantes</h3>
+              <p className="text-sm text-gray-600">Gestión de base electoral</p>
             </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group">
-              <div className="w-12 h-12 bg-gradient-to-br from-accent-500 to-accent-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <span className="text-white text-xl">📈</span>
+
+            <div className="bg-white/70 backdrop-blur-sm rounded-xl p-4 text-center">
+              <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg mx-auto mb-2 flex items-center justify-center">
+                <span className="text-white text-sm font-bold">📋</span>
               </div>
               <h3 className="font-bold text-gray-900 mb-2">Reportes</h3>
               <p className="text-sm text-gray-600">Informes personalizados</p>
