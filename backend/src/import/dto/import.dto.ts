@@ -61,6 +61,9 @@ export class BulkImportPlanilladoDto {
   @IsOptional()
   @IsString()
   notas?: string;
+  departamentoVotacion: string;
+  direccionVotacion: string;
+  grupoNombre: string;
 }
 
 // ✅ DTO CORREGIDO para importación masiva de líderes

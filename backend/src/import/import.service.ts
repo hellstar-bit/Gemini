@@ -682,70 +682,89 @@ export class ImportService {
   const planillado: BulkImportPlanilladoDto = {
     cedula: '',
     nombres: '',
-    apellidos: ''
+    apellidos: '',
+    departamentoVotacion: '',
+    direccionVotacion: '',
+    grupoNombre: ''
   };
+
+  // ✅ Agregar debug logs temporalmente
+  console.log('🔍 Mapping row:', row);
+  console.log('🔍 Mappings received:', mappings);
 
   for (const [csvColumn, entityField] of Object.entries(mappings)) {
     if (row[csvColumn] !== undefined && row[csvColumn] !== null) {
       let value = String(row[csvColumn]).trim();
+      
+      // ✅ Agregar debug log
+      console.log(`🔍 Mapping ${csvColumn} -> ${entityField}: "${value}"`);
       
       switch (entityField) {
         case 'cedula':
           planillado.cedula = value;
           break;
         case 'nombres':
-          planillado.nombres = this.capitalizeWords(value); // ✅ Normalizar
+          planillado.nombres = this.capitalizeWords(value);
           break;
         case 'apellidos':
-          planillado.apellidos = this.capitalizeWords(value); // ✅ Normalizar
+          planillado.apellidos = this.capitalizeWords(value);
+          break;
+        case 'celular':
+          planillado.celular = value;
+          break;
+        case 'direccion':
+          planillado.direccion = value;
           break;
         case 'barrioVive':
-          planillado.barrioVive = this.normalizeBarrio(value); // ✅ Normalizar barrio
+          planillado.barrioVive = this.normalizeBarrio ? this.normalizeBarrio(value) : value;
+          break;
+        case 'fechaExpedicion':
+          planillado.fechaExpedicion = value;
+          break;
+        case 'departamentoVotacion':
+          planillado.departamentoVotacion = value;
           break;
         case 'municipioVotacion':
-          planillado.municipioVotacion = this.capitalizeWords(value); // ✅ Normalizar
+          planillado.municipioVotacion = this.capitalizeWords ? this.capitalizeWords(value) : value;
           break;
-          case 'zonaPuesto':
-            planillado.zonaPuesto = value;
-            break;
-          case 'mesa':
-            planillado.mesa = value;
-            break;
-          case 'liderCedula':
-            planillado.liderCedula = value;
-            break;
-          case 'fechaNacimiento':
-            planillado.fechaNacimiento = value;
-            break;
-          case 'genero':
-            if (['M', 'F', 'Otro'].includes(value)) {
-              planillado.genero = value as 'M' | 'F' | 'Otro';
-            }
-            break;
-          case 'notas':
-            planillado.notas = value;
-            break;
-        }
+        case 'direccionVotacion':
+          planillado.direccionVotacion = value;
+          break;
+        case 'zonaPuesto':
+          planillado.zonaPuesto = value;
+          break;
+        case 'mesa':
+          planillado.mesa = value;
+          break;
+        case 'liderCedula':
+          planillado.liderCedula = value;
+          break;
+        case 'grupoNombre':
+          planillado.grupoNombre = value;
+          break;
+        case 'fechaNacimiento':
+          planillado.fechaNacimiento = value;
+          break;
+        default:
+          console.log(`⚠️ Campo no reconocido: ${entityField}`);
+          break;
       }
     }
-
-    return planillado;
   }
-  private normalizeBarrio(barrio: string): string {
-  if (!barrio) return barrio;
+
+  // ✅ Debug log del resultado
+  console.log('🔍 Final mapped planillado:', planillado);
   
-  // Convertir a mayúsculas y limpiar espacios
-  return barrio.trim().toUpperCase();
+  return planillado;
 }
 
+// ✅ También agregar estos métodos auxiliares si no existen
 private capitalizeWords(text: string): string {
-  if (!text) return text;
-  
-  return text
-    .toLowerCase()
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+  return text.toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+}
+
+private normalizeBarrio(barrio: string): string {
+  return this.capitalizeWords(barrio.trim());
 }
 
   // ✅ MAPEAR FILA A VOTANTE
