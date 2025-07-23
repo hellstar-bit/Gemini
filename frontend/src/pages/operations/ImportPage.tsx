@@ -1,656 +1,382 @@
-// frontend/src/pages/operations/ImportPage.tsx - ACTUALIZADO PARA PLANILLADOS
+// frontend/src/pages/operations/ImportPage.tsx - ERRORES CORREGIDOS
 
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { 
-  CloudArrowUpIcon, 
-  DocumentTextIcon, 
+import * as XLSX from 'xlsx'; // ✅ IMPORT DIRECTO DE XLSX
+import {
+  ArrowUpTrayIcon,
+  DocumentIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon,
+  XCircleIcon,
   ArrowPathIcon,
-  ArrowLeftIcon,
-  ArrowRightIcon
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
-import { 
-  importService, 
-  type ImportPreview, 
-  type ImportResult, 
-  type ImportMapping,
-  ENTITY_TYPES,
-  ENTITY_FIELDS,
-  type MappingQuality
-} from '../../services/importService';
 
-const ImportPage: React.FC = () => {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [selectedEntityType, setSelectedEntityType] = useState<keyof typeof ENTITY_FIELDS>('planillados'); // ✅ DEFAULT planillados
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<ImportPreview | null>(null);
-  const [fieldMappings, setFieldMappings] = useState<Record<string, string>>({});
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [mappingQuality, setMappingQuality] = useState<MappingQuality | null>(null);
+import { ImportMapping } from '../../components/import/ImportMapping';
+import { ImportResults } from '../../components/import/ImportResults';
+import { importService } from '../../services/importService'; // ✅ IMPORT CORREGIDO
 
-  interface EntityField {
-  key: string;
-  label: string;
-  required: boolean;
-  example?: string;
+interface ImportPageState {
+  file: File | null;
+  preview: any | null;
+  mappings: Record<string, string>;
+  result: any | null;
+  errors: string[];
+  isLoading: boolean;
 }
 
+export const ImportPage: React.FC = () => {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [state, setState] = useState<ImportPageState>({
+    file: null,
+    preview: null,
+    mappings: {},
+    result: null,
+    errors: [],
+    isLoading: false,
+  });
 
-  // ✅ PROCESAR ARCHIVO SUBIDO
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    if (acceptedFiles.length === 0) return;
-    
-    const file = acceptedFiles[0];
-    setUploadedFile(file);
-    setIsLoading(true);
-    
+  // ✅ FUNCIÓN PARA DESCARGAR PLANTILLA DE PLANILLADOS
+  const downloadTemplate = () => {
     try {
-      console.log('🔄 Procesando archivo:', file.name);
-      const previewData = await importService.previewFile(file);
-      console.log('📊 Preview obtenido:', previewData);
+      // Datos de ejemplo para la plantilla
+      const templateData = [
+        {
+          'cédula': '12345678',
+          'nombres': 'Juan Carlos',
+          'apellidos': 'Pérez García',
+          'celular': '3001234567',
+          'dirección': 'Calle 123 #45-67',
+          'barrio donde vive': 'El Prado',
+          'fecha de expedición': '15/05/2010',
+          'municipio de votación': 'Barranquilla',
+          'zona y puesto': 'Zona 1 - Puesto 5',
+          'mesa': '001',
+          'cédula líder': '87654321',
+          'fecha de nacimiento': '25/08/1990',
+          'género': 'M',
+          'notas': 'Votante comprometido'
+        },
+        {
+          'cédula': '87654321',
+          'nombres': 'María Fernanda',
+          'apellidos': 'González López',
+          'celular': '3009876543',
+          'dirección': 'Carrera 50 #80-25',
+          'barrio donde vive': 'La Concepción',
+          'fecha de expedición': '20/03/2008',
+          'municipio de votación': 'Soledad',
+          'zona y puesto': 'Zona 2 - Puesto 3',
+          'mesa': '025',
+          'fecha de nacimiento': '12/11/1985',
+          'género': 'F'
+        }
+      ];
+
+      // Instrucciones para la plantilla
+      const instructions = [
+        '🎯 PLANTILLA PARA IMPORTAR PLANILLADOS EN GEMINI',
+        '',
+        '📋 CAMPOS OBLIGATORIOS (marcados con *):',
+        '   ✓ cédula*: Número de identificación sin puntos ni espacios',
+        '   ✓ nombres*: Nombres completos de la persona',
+        '   ✓ apellidos*: Apellidos completos de la persona',
+        '',
+        '📝 CAMPOS OPCIONALES IMPORTANTES:',
+        '   • celular: Número de teléfono celular (formato: 3001234567)',
+        '   • dirección: Dirección completa de residencia',
+        '   • barrio donde vive: Barrio o sector donde reside',
+        '   • fecha de expedición: Fecha de expedición de la cédula (DD/MM/YYYY)',
+        '   • municipio de votación: Municipio donde está registrado para votar',
+        '   • zona y puesto: Información electoral específica',
+        '   • mesa: Número de mesa electoral',
+        '   • cédula líder: Cédula del líder asignado (opcional)',
+        '   • fecha de nacimiento: Fecha de nacimiento (DD/MM/YYYY)',
+        '   • género: M (Masculino), F (Femenino), Otro',
+        '   • notas: Observaciones adicionales',
+        '',
+        '⚠️ IMPORTANTE:',
+        '   • NO modifiques el nombre de las columnas',
+        '   • Usa el formato DD/MM/YYYY para todas las fechas',
+        '   • La cédula debe ser solo números, sin puntos ni espacios',
+        '   • El celular debe tener 10 dígitos y empezar por 3',
+        '',
+        '💡 CONSEJOS:',
+        '   • Puedes eliminar las filas de ejemplo antes de importar',
+        '   • Si no tienes algún dato, deja la celda vacía',
+        '   • Revisa que no hayan cédulas duplicadas',
+        '   • Máximo 10,000 registros por archivo'
+      ].map(instruction => ({ 'INSTRUCCIONES': instruction }));
+
+      // Crear workbook
+      const workbook = XLSX.utils.book_new();
       
-      setPreview(previewData);
+      // Crear worksheet principal
+      const worksheet = XLSX.utils.json_to_sheet(templateData);
       
-      // ✅ OBTENER SUGERENCIAS DE MAPEO AUTOMÁTICO
-      const suggestions = await importService.suggestFieldMappings(
-        previewData.headers, 
-        selectedEntityType
-      );
-      console.log('💡 Sugerencias de mapeo:', suggestions);
+      // Crear worksheet de instrucciones
+      const instructionsWorksheet = XLSX.utils.json_to_sheet(instructions);
       
-      setFieldMappings(suggestions);
-      setCurrentStep(2);
+      // Configurar anchos de columna
+      const columnWidths = [
+        { wch: 12 }, // cédula
+        { wch: 20 }, // nombres
+        { wch: 20 }, // apellidos
+        { wch: 15 }, // celular
+        { wch: 25 }, // dirección
+        { wch: 18 }, // barrio donde vive
+        { wch: 18 }, // fecha de expedición
+        { wch: 20 }, // municipio de votación
+        { wch: 18 }, // zona y puesto
+        { wch: 8 },  // mesa
+        { wch: 15 }, // cédula líder
+        { wch: 18 }, // fecha de nacimiento
+        { wch: 10 }, // género
+        { wch: 30 }  // notas
+      ];
+      
+      worksheet['!cols'] = columnWidths;
+      instructionsWorksheet['!cols'] = [{ wch: 60 }];
+      
+      // Agregar hojas al workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Planillados');
+      XLSX.utils.book_append_sheet(workbook, instructionsWorksheet, 'Instrucciones');
+      
+      // Descargar archivo
+      const fileName = `Plantilla_Planillados_GEMINI_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+      
+      console.log('✅ Plantilla descargada:', fileName);
     } catch (error) {
-      console.error('❌ Error procesando archivo:', error);
-      if (error instanceof Error) {
-        alert(`Error procesando archivo: ${error.message}`);
-      } else {
-        alert('Ocurrió un error desconocido al procesar el archivo.');
-      }
-    } finally {
-      setIsLoading(false);
+      console.error('❌ Error descargando plantilla:', error);
+      alert('Error al descargar la plantilla. Intenta de nuevo.');
     }
-  }, [selectedEntityType]);
+  };
+
+  // Configuración de dropzone
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (!file) return;
+
+    setState(prev => ({ ...prev, isLoading: true, errors: [] }));
+
+    try {
+      const preview = await importService.previewFile(file);
+      setState(prev => ({
+        ...prev,
+        file,
+        preview,
+        isLoading: false,
+        errors: preview.errors || [],
+      }));
+      setCurrentStep(2);
+    } catch (error: any) {
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        errors: [error.message || 'Error procesando archivo'],
+      }));
+    }
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
       'application/vnd.ms-excel': ['.xls'],
-      'text/csv': ['.csv']
+      'text/csv': ['.csv'],
     },
     maxFiles: 1,
-    maxSize: 10 * 1024 * 1024 // 10MB
+    maxSize: 10 * 1024 * 1024, // 10MB
   });
 
-  // ✅ MANEJAR CAMBIO DE MAPEO
-  const handleFieldMapping = (csvColumn: string, entityField: string) => {
-    const newMappings = {
-      ...fieldMappings,
-      [csvColumn]: entityField
-    };
-    setFieldMappings(newMappings);
-    
-    // Actualizar calidad del mapeo
-    const quality = importService.getMappingQuality(newMappings, selectedEntityType);
-    setMappingQuality(quality);
+  // ✅ FUNCIÓN PARA MANEJAR CAMBIOS DE MAPEO
+  const handleMappingChange = (mappings: Record<string, string>) => {
+    setState(prev => ({ ...prev, mappings }));
   };
 
-  // ✅ VALIDAR Y CONTINUAR AL PASO 3
-  const proceedToMapping = () => {
-    const validation = importService.validateMapping(fieldMappings, selectedEntityType);
-    
-    if (!validation.isValid) {
-      alert(`Errores en el mapeo:\n${validation.errors.join('\n')}`);
-      return;
-    }
-    
-    setCurrentStep(3);
-  };
-
-  // ✅ EJECUTAR IMPORTACIÓN
+  // Ejecutar importación
   const executeImport = async () => {
-    if (!preview || !uploadedFile) return;
-    
-    setIsLoading(true);
-    
+    if (!state.file || !state.preview) return;
+
+    setState(prev => ({ ...prev, isLoading: true }));
+    setCurrentStep(3);
+
     try {
-      const mapping: ImportMapping = {
-        fileName: uploadedFile.name,
-        entityType: selectedEntityType,
-        fieldMappings,
-        previewData: preview.data
+      const mappingData = {
+        fileName: state.file.name,
+        entityType: 'planillados' as const, // ✅ FIJO A PLANILLADOS
+        fieldMappings: state.mappings,
+        previewData: state.preview.data,
       };
-      
-      console.log('🚀 Iniciando importación:', mapping);
-      
-      // ✅ USAR EL MÉTODO GENÉRICO PARA CUALQUIER ENTIDAD
-      const result = await importService.importEntity(mapping);
-      console.log('✅ Importación completada:', result);
-      
-      setImportResult(result);
+
+      const result = await importService.importPlanillados(mappingData); // ✅ MÉTODO ESPECÍFICO
+      setState(prev => ({
+        ...prev,
+        result,
+        isLoading: false,
+      }));
       setCurrentStep(4);
-    } catch (error) {
-      console.error('❌ Error en importación:', error);
-      if (error instanceof Error) {
-        alert(`Error en importación: ${error.message}`);
-      } else {
-        alert('Ocurrió un error desconocido durante la importación.');
-      }
-    } finally {
-      setIsLoading(false);
+    } catch (error: any) {
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        errors: [error.message || 'Error durante la importación'],
+      }));
+      setCurrentStep(2);
     }
   };
 
-  // ✅ RESETEAR IMPORTACIÓN
+  // Reiniciar proceso
   const resetImport = () => {
+    setState({
+      file: null,
+      preview: null,
+      mappings: {},
+      result: null,
+      errors: [],
+      isLoading: false,
+    });
     setCurrentStep(1);
-    setUploadedFile(null);
-    setPreview(null);
-    setFieldMappings({});
-    setImportResult(null);
-    setMappingQuality(null);
   };
 
-  // ✅ RENDER STEP 1: SELECCIÓN DE ARCHIVO
+  // =====================================
+  // RENDER DE CADA PASO
+  // =====================================
+
   const renderStep1 = () => (
-    <div className="space-y-6">
-      {/* Selector de tipo de entidad */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-3">
-          ¿Qué tipo de datos vas a importar?
-        </label>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {ENTITY_TYPES.map((entityType) => (
-            <div
-              key={entityType.value}
-              className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                selectedEntityType === entityType.value
-                  ? 'border-primary-500 bg-primary-50'
-                  : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
-              }`}
-              onClick={() => setSelectedEntityType(entityType.value as keyof typeof ENTITY_FIELDS)}
-            >
-              <div className="flex items-center space-x-3">
-                <span className="text-2xl">{entityType.icon}</span>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{entityType.label}</h3>
-                  <p className="text-sm text-gray-600">{entityType.description}</p>
-                </div>
-              </div>
-              {selectedEntityType === entityType.value && (
-                <CheckCircleIcon className="absolute top-2 right-2 w-5 h-5 text-primary-500" />
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Zona de drop */}
-      <div
-        {...getRootProps()}
-        className={`p-12 border-2 border-dashed rounded-xl text-center cursor-pointer transition-colors ${
-          isDragActive
-            ? 'border-primary-400 bg-primary-50'
-            : 'border-gray-300 hover:border-primary-400 hover:bg-gray-50'
-        }`}
-      >
-        <input {...getInputProps()} />
-        <CloudArrowUpIcon className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">
-          {isDragActive ? 'Suelta el archivo aquí' : 'Arrastra tu archivo aquí'}
+    <div className="text-center">
+      {/* Botón de descarga de plantilla */}
+      <div className="mb-8">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          📋 Paso 1: Descarga la plantilla oficial
         </h3>
-        <p className="text-gray-600 mb-4">
-          o <span className="text-primary-600 font-medium">haz clic para seleccionar</span>
+        <p className="text-gray-600 mb-6">
+          Utiliza nuestra plantilla Excel para asegurar que tus datos tengan el formato correcto
         </p>
-        <p className="text-sm text-gray-500">
-          Archivos soportados: Excel (.xlsx, .xls) y CSV (.csv) • Máximo 10MB
+        <button
+          onClick={downloadTemplate}
+          className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+        >
+          <ArrowDownTrayIcon className="w-5 h-5 mr-2" />
+          Descargar Plantilla Excel
+        </button>
+        <p className="text-sm text-gray-500 mt-2">
+          Incluye ejemplos y todas las columnas necesarias
         </p>
       </div>
 
-      {/* Archivo seleccionado */}
-      {uploadedFile && (
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-          <div className="flex items-center">
-            <DocumentTextIcon className="w-8 h-8 text-blue-600 mr-3" />
-            <div>
-              <div className="font-medium text-blue-900">{uploadedFile.name}</div>
-              <div className="text-sm text-blue-600">
-                {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
-              </div>
+      {/* Separador */}
+      <div className="flex items-center my-8">
+        <div className="flex-1 border-t border-gray-300"></div>
+        <span className="px-4 text-gray-500 text-sm">o</span>
+        <div className="flex-1 border-t border-gray-300"></div>
+      </div>
+
+      {/* Zona de subida */}
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          📤 Paso 2: Sube tu archivo de planillados
+        </h3>
+        <div
+          {...getRootProps()}
+          className={`border-2 border-dashed rounded-xl p-12 transition-all duration-300 cursor-pointer ${
+            isDragActive
+              ? 'border-blue-400 bg-blue-50'
+              : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+          }`}
+        >
+          <input {...getInputProps()} />
+          <div className="text-center">
+            <ArrowUpTrayIcon className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+            <p className="text-xl font-medium text-gray-900 mb-2">
+              {isDragActive ? 'Suelta el archivo aquí' : 'Arrastra tu archivo Excel aquí'}
+            </p>
+            <p className="text-gray-600 mb-4">
+              o haz clic para seleccionar desde tu computadora
+            </p>
+            <div className="flex items-center justify-center space-x-4 text-sm text-gray-500">
+              <span className="flex items-center">
+                <DocumentIcon className="w-4 h-4 mr-1" />
+                .xlsx, .xls, .csv
+              </span>
+              <span>Máximo 10MB</span>
+              <span>Hasta 10,000 registros</span>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Información específica por tipo de entidad */}
-      {selectedEntityType && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-          <h4 className="font-semibold text-yellow-800 mb-2">
-            📋 Campos para {ENTITY_TYPES.find(e => e.value === selectedEntityType)?.label}
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            {ENTITY_FIELDS[selectedEntityType]?.map((field) => (
-              <div key={field.key} className="flex items-center space-x-2">
-                <span className={`w-2 h-2 rounded-full ${field.required ? 'bg-red-500' : 'bg-gray-400'}`} />
-                <span className="text-yellow-700">
-                  <strong>{field.label}</strong>
-                  {field.required && <span className="text-red-600"> (requerido)</span>}
-                  {field.example && <span className="text-gray-600"> - ej: {field.example}</span>}
-                </span>
-              </div>
-            ))}
+      {/* Errores */}
+      {state.errors.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <XCircleIcon className="w-5 h-5 text-red-500 mr-2" />
+            <h4 className="font-medium text-red-800">Errores encontrados:</h4>
           </div>
+          <ul className="mt-2 text-sm text-red-700 space-y-1">
+            {state.errors.map((error, index) => (
+              <li key={index}>• {error}</li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
   );
 
-  // ✅ RENDER STEP 2: MAPEO DE CAMPOS
-  const renderStep2 = () => {
-    if (!preview) return null;
+  const renderStep2 = () => (
+    <ImportMapping
+      preview={state.preview}
+      entityType="planillados" // ✅ FIJO A PLANILLADOS
+      onSubmit={executeImport} // ✅ CORREGIDO: onSubmit en lugar de onNext
+      onMappingChange={handleMappingChange} // ✅ AGREGADO: función de callback
+      onBack={() => setCurrentStep(1)}
+    />
+  );
 
-    const availableFields = importService.getAvailableFields(selectedEntityType);
-    const usedFields = Object.values(fieldMappings);
+  const renderStep3 = () => (
+    <div className="text-center py-12">
+      <ArrowPathIcon className="w-16 h-16 animate-spin mx-auto text-blue-600 mb-4" />
+      <h3 className="text-2xl font-semibold text-gray-900 mb-2">
+        Importando planillados...
+      </h3>
+      <p className="text-gray-600">
+        Procesando {state.preview?.totalRows || 0} registros. Por favor espera.
+      </p>
+    </div>
+  );
 
-    return (
-      <div className="space-y-6">
-        {/* Información del archivo */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <h3 className="font-semibold text-blue-900 mb-2">📊 Información del archivo</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <span className="text-blue-700 font-medium">Archivo:</span>
-              <p className="text-blue-800">{uploadedFile?.name}</p>
-            </div>
-            <div>
-              <span className="text-blue-700 font-medium">Filas:</span>
-              <p className="text-blue-800">{preview.totalRows.toLocaleString()}</p>
-            </div>
-            <div>
-              <span className="text-blue-700 font-medium">Columnas:</span>
-              <p className="text-blue-800">{preview.headers.length}</p>
-            </div>
-            <div>
-              <span className="text-blue-700 font-medium">Tipo:</span>
-              <p className="text-blue-800">{ENTITY_TYPES.find(e => e.value === selectedEntityType)?.label}</p>
-            </div>
-          </div>
-        </div>
+  const renderStep4 = () => (
+    <ImportResults
+      result={state.result}
+      onReset={resetImport}
+      entityType="planillados" // ✅ FIJO A PLANILLADOS
+    />
+  );
 
-        {/* Calidad del mapeo */}
-        {mappingQuality && (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold text-green-900">🎯 Calidad del mapeo</h3>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                mappingQuality.score >= 80 ? 'bg-green-100 text-green-800' :
-                mappingQuality.score >= 60 ? 'bg-yellow-100 text-yellow-800' :
-                'bg-red-100 text-red-800'
-              }`}>
-                {mappingQuality.score}%
-              </span>
-            </div>
-            <p className="text-green-700 text-sm mb-2">{mappingQuality.feedback}</p>
-            <div className="w-full bg-green-200 rounded-full h-2">
-              <div 
-                className="bg-green-600 h-2 rounded-full transition-all"
-                style={{ width: `${mappingQuality.score}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Mapeo de campos */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">
-            🔗 Mapear columnas del archivo a campos del sistema
-          </h3>
-          
-          <div className="grid gap-4">
-            {preview.headers.map((header, index) => (
-              <div key={index} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    📄 {header}
-                  </label>
-                  <div className="text-xs text-gray-500">
-                    Ejemplo: {preview.sampleRows[0]?.[header] || 'Sin datos'}
-                  </div>
-                </div>
-                <ArrowRightIcon className="w-5 h-5 text-gray-400" />
-                <div className="flex-1">
-                  <select
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    value={fieldMappings[header] || ''}
-                    onChange={(e) => handleFieldMapping(header, e.target.value)}
-                  >
-                    <option value="">-- No mapear --</option>
-                    {availableFields.map((field: EntityField) => (
-                      <option 
-                        key={field.key} 
-                        value={field.key}
-                        disabled={usedFields.includes(field.key) && fieldMappings[header] !== field.key}
-                      >
-                        {field.label} {field.required ? '(requerido)' : ''}
-                        {usedFields.includes(field.key) && fieldMappings[header] !== field.key ? ' (ya usado)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Botones */}
-        <div className="flex justify-between pt-6">
-          <button
-            onClick={() => setCurrentStep(1)}
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center space-x-2"
-          >
-            <ArrowLeftIcon className="w-4 h-4" />
-            <span>Anterior</span>
-          </button>
-          <button
-            onClick={proceedToMapping}
-            disabled={Object.keys(fieldMappings).length === 0}
-            className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-          >
-            <span>Continuar</span>
-            <ArrowRightIcon className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  // ✅ RENDER STEP 3: CONFIRMACIÓN
-  const renderStep3 = () => {
-    if (!preview) return null;
-
-    const mappedFields = Object.entries(fieldMappings).filter(([, value]) => value !== '');
-    const validation = importService.validateMapping(fieldMappings, selectedEntityType);
-
-    return (
-      <div className="space-y-6">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            🔍 Confirmar importación
-          </h2>
-          <p className="text-gray-600">
-            Revisa la configuración antes de proceder con la importación
-          </p>
-        </div>
-
-        {/* Resumen de la importación */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-          <h3 className="font-semibold text-blue-900 mb-4">📋 Resumen de importación</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <span className="text-blue-700 font-medium">Tipo:</span>
-              <p className="text-blue-800">{ENTITY_TYPES.find(e => e.value === selectedEntityType)?.label}</p>
-            </div>
-            <div>
-              <span className="text-blue-700 font-medium">Registros:</span>
-              <p className="text-blue-800">{preview.totalRows.toLocaleString()}</p>
-            </div>
-            <div>
-              <span className="text-blue-700 font-medium">Campos mapeados:</span>
-              <p className="text-blue-800">{mappedFields.length}</p>
-            </div>
-            <div>
-              <span className="text-blue-700 font-medium">Estado:</span>
-              <p className={`font-semibold ${validation.isValid ? 'text-green-600' : 'text-red-600'}`}>
-                {validation.isValid ? '✅ Listo' : '❌ Errores'}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Errores de validación */}
-        {!validation.isValid && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-            <h4 className="font-semibold text-red-900 mb-2">❌ Errores de validación</h4>
-            <ul className="list-disc list-inside space-y-1">
-              {validation.errors.map((error, index) => (
-                <li key={index} className="text-red-700 text-sm">{error}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Mapeo de campos */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <h4 className="font-semibold text-gray-900 mb-4">🔗 Campos mapeados</h4>
-          <div className="space-y-2">
-            {mappedFields.map(([csvColumn, entityField]) => {
-              const fieldInfo = ENTITY_FIELDS[selectedEntityType]?.find(f => f.key === entityField);
-              return (
-                <div key={csvColumn} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                  <span className="text-gray-700">📄 {csvColumn}</span>
-                  <ArrowRightIcon className="w-4 h-4 text-gray-400" />
-                  <span className="font-medium text-gray-900">
-                    {fieldInfo?.label || entityField}
-                    {fieldInfo?.required && <span className="text-red-500 ml-1">*</span>}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Vista previa de datos */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <h4 className="font-semibold text-gray-900 mb-4">👁️ Vista previa de datos</h4>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  {mappedFields.map(([, entityField]) => {
-                    const fieldInfo = ENTITY_FIELDS[selectedEntityType]?.find(f => f.key === entityField);
-                    return (
-                      <th key={entityField} className="text-left p-2 font-medium text-gray-900">
-                        {fieldInfo?.label || entityField}
-                        {fieldInfo?.required && <span className="text-red-500 ml-1">*</span>}
-                      </th>
-                    );
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {preview.sampleRows.slice(0, 3).map((row, rowIndex) => (
-                  <tr key={rowIndex} className="border-b border-gray-100">
-                    {mappedFields.map(([csvColumn, entityField]) => (
-                      <td key={entityField} className="p-2 text-gray-700">
-                        {row[csvColumn] || '-'}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="text-xs text-gray-500 mt-2">
-            Mostrando primeras 3 filas de {preview.totalRows.toLocaleString()} registros
-          </p>
-        </div>
-
-        {/* Botones */}
-        <div className="flex justify-between pt-6">
-          <button
-            onClick={() => setCurrentStep(2)}
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center space-x-2"
-          >
-            <ArrowLeftIcon className="w-4 h-4" />
-            <span>Anterior</span>
-          </button>
-          <button
-            onClick={executeImport}
-            disabled={!validation.isValid || isLoading}
-            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-          >
-            {isLoading ? (
-              <>
-                <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                <span>Importando...</span>
-              </>
-            ) : (
-              <>
-                <span>🚀 Ejecutar importación</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  // ✅ RENDER STEP 4: RESULTADOS
-  const renderStep4 = () => {
-    if (!importResult) return null;
-
-    return (
-      <div className="space-y-6">
-        <div className="text-center">
-          <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
-            importResult.success ? 'bg-green-100' : 'bg-yellow-100'
-          }`}>
-            {importResult.success ? (
-              <CheckCircleIcon className="w-8 h-8 text-green-600" />
-            ) : (
-              <ExclamationTriangleIcon className="w-8 h-8 text-yellow-600" />
-            )}
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            {importResult.success ? '✅ Importación completada' : '⚠️ Importación con errores'}
-          </h2>
-          <p className="text-gray-600">
-            {importResult.success 
-              ? 'Todos los registros se importaron correctamente'
-              : 'La importación se completó pero algunos registros tuvieron errores'
-            }
-          </p>
-        </div>
-
-        {/* Estadísticas */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-          <h3 className="font-semibold text-blue-900 mb-4">📊 Resultados de la importación</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <span className="text-blue-700 font-medium">Total:</span>
-              <p className="text-2xl font-bold text-blue-800">{importResult.totalRows.toLocaleString()}</p>
-            </div>
-            <div>
-              <span className="text-green-700 font-medium">Exitosos:</span>
-              <p className="text-2xl font-bold text-green-600">{importResult.successCount.toLocaleString()}</p>
-            </div>
-            <div>
-              <span className="text-red-700 font-medium">Errores:</span>
-              <p className="text-2xl font-bold text-red-600">{importResult.errorCount.toLocaleString()}</p>
-            </div>
-            <div>
-              <span className="text-gray-700 font-medium">Tiempo:</span>
-              <p className="text-2xl font-bold text-gray-800">{(importResult.executionTime / 1000).toFixed(1)}s</p>
-            </div>
-          </div>
-          
-          {/* Barra de progreso */}
-          <div className="mt-4">
-            <div className="flex justify-between text-sm text-gray-600 mb-1">
-              <span>Tasa de éxito</span>
-              <span>{((importResult.successCount / importResult.totalRows) * 100).toFixed(1)}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-green-600 h-2 rounded-full"
-                style={{ width: `${(importResult.successCount / importResult.totalRows) * 100}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Errores */}
-        {importResult.errors.length > 0 && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-            <h4 className="font-semibold text-red-900 mb-4">❌ Errores encontrados</h4>
-            <div className="max-h-60 overflow-y-auto space-y-2">
-              {importResult.errors.slice(0, 10).map((error, index) => (
-                <div key={index} className="p-2 bg-white rounded border-l-4 border-red-400">
-                  <div className="flex justify-between">
-                    <span className="font-medium text-red-900">Fila {error.row}</span>
-                    <span className={`px-2 py-1 rounded text-xs ${
-                      error.severity === 'error' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {error.severity === 'error' ? 'Error' : 'Advertencia'}
-                    </span>
-                  </div>
-                  <p className="text-red-700 text-sm">
-                    <strong>{error.field}:</strong> {error.error}
-                  </p>
-                  {error.value && (
-                    <p className="text-red-600 text-xs">Valor: {error.value}</p>
-                  )}
-                </div>
-              ))}
-              {importResult.errors.length > 10 && (
-                <p className="text-red-600 text-sm text-center">
-                  ... y {importResult.errors.length - 10} errores más
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Advertencias */}
-        {importResult.warnings.length > 0 && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-            <h4 className="font-semibold text-yellow-900 mb-2">⚠️ Advertencias</h4>
-            <ul className="list-disc list-inside space-y-1">
-              {importResult.warnings.map((warning, index) => (
-                <li key={index} className="text-yellow-700 text-sm">{warning}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Botones */}
-        <div className="flex justify-center space-x-4 pt-6">
-          <button
-            onClick={resetImport}
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-          >
-            Nueva importación
-          </button>
-          <button
-            onClick={() => window.location.href = '/planillados'}
-            className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-          >
-            Ver planillados importados
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  // ✅ INDICADOR DE PASOS
+  // =====================================
+  // INDICADOR DE PASOS
+  // =====================================
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center mb-8">
-      {[1, 2, 3, 4].map((step) => (
+      {[1, 2, 3, 4].map((step, _index) => (
         <div key={step} className="flex items-center">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-            currentStep >= step 
-              ? 'bg-primary-500 text-white' 
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${
+            currentStep === step 
+              ? 'bg-blue-600 text-white' 
+              : currentStep > step 
+              ? 'bg-green-500 text-white' 
               : 'bg-gray-200 text-gray-500'
           }`}>
-            {step}
+            {currentStep > step ? (
+              <CheckCircleIcon className="w-5 h-5" />
+            ) : (
+              step
+            )}
           </div>
           {step < 4 && (
             <div className={`w-16 h-1 mx-2 ${
-              currentStep > step ? 'bg-primary-500' : 'bg-gray-200'
+              currentStep > step ? 'bg-green-500' : 'bg-gray-200'
             }`} />
           )}
         </div>
@@ -664,10 +390,10 @@ const ImportPage: React.FC = () => {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            📥 Importar datos desde Excel
+            📥 Importar Planillados
           </h1>
           <p className="text-gray-600">
-            Sube tu archivo Excel o CSV y configura la importación de datos
+            Importa datos de planillados desde Excel de forma rápida y segura
           </p>
         </div>
 
@@ -675,10 +401,10 @@ const ImportPage: React.FC = () => {
         {renderStepIndicator()}
 
         {/* Loading overlay */}
-        {isLoading && (
+        {state.isLoading && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-xl p-8 text-center">
-              <ArrowPathIcon className="w-8 h-8 animate-spin mx-auto text-primary-600 mb-4" />
+              <ArrowPathIcon className="w-8 h-8 animate-spin mx-auto text-blue-600 mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 {currentStep === 1 ? 'Procesando archivo...' :
                  currentStep === 3 ? 'Ejecutando importación...' :
@@ -701,20 +427,20 @@ const ImportPage: React.FC = () => {
           {currentStep === 4 && renderStep4()}
         </div>
 
-        {/* Footer con información adicional */}
+        {/* Footer con información */}
         <div className="mt-8 text-center">
           <div className="inline-flex items-center space-x-6 text-sm text-gray-500">
             <div className="flex items-center">
               <CheckCircleIcon className="w-4 h-4 mr-1 text-green-500" />
-              Formato Excel compatible
+              Solo planillados
             </div>
             <div className="flex items-center">
               <CheckCircleIcon className="w-4 h-4 mr-1 text-green-500" />
-              Detección automática de campos
+              Plantilla incluida
             </div>
             <div className="flex items-center">
               <CheckCircleIcon className="w-4 h-4 mr-1 text-green-500" />
-              Validación en tiempo real
+              Validación automática
             </div>
             <div className="flex items-center">
               <CheckCircleIcon className="w-4 h-4 mr-1 text-green-500" />

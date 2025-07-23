@@ -35,30 +35,49 @@ export class LeadersService {
   ) {}
 
   // ✅ Obtener todos los líderes con filtros y paginación - CORREGIDO
-  async findAll(page: number = 1, limit: number = 20): Promise<any> {
-    try {
-      const [leaders, total] = await this.leaderRepository.findAndCount({
-        relations: ['group', 'planillados'],
-        skip: (page - 1) * limit,
-        take: limit,
-        order: { firstName: 'ASC', lastName: 'ASC' }
-      });
+  async findAll(
+  filters: LeaderFiltersDto = {}, 
+  page: number = 1, 
+  limit: number = 20
+): Promise<PaginatedResponse<Leader>> {
+  try {
+    // Crear query builder con filtros
+    const queryBuilder = this.createQueryBuilder(filters);
+    
+    // Incluir relaciones
+    queryBuilder.leftJoinAndSelect('leader.group', 'group');
+    queryBuilder.leftJoinAndSelect('leader.planillados', 'planillados');
+    
+    // Contar planillados para cada líder
+    queryBuilder.loadRelationCountAndMap('leader.planilladosCount', 'leader.planillados');
+    
+    // Paginación
+    const offset = (page - 1) * limit;
+    queryBuilder.skip(offset).take(limit);
+    
+    // Ordenamiento
+    queryBuilder.orderBy('leader.firstName', 'ASC');
+    queryBuilder.addOrderBy('leader.lastName', 'ASC');
+    
+    // Ejecutar consulta
+    const [leaders, total] = await queryBuilder.getManyAndCount();
 
-      return {
-        data: leaders,
-        meta: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-          hasNextPage: page < Math.ceil(total / limit),
-          hasPrevPage: page > 1,
-        },
-      };
-    } catch (error) {
-      throw error;
-    }
+    return {
+      data: leaders,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPrevPage: page > 1,
+      },
+    };
+  } catch (error) {
+    console.error('Error en findAll:', error);
+    throw error;
   }
+}
 
   // ✅ Obtener estadísticas de líderes
   async getStats(filters: LeaderFiltersDto = {}): Promise<LeaderStatsDto> {
@@ -393,22 +412,37 @@ export class LeadersService {
   }
 
   async getEstadisticasPlanillados(liderId: number): Promise<{
-    asignados: number;
-    pendientes: number;
-    verificados: number;
-    sinVerificar: number;
-  }> {
-    try {
-      const leader = await this.findOne(liderId);
-      
-      // Usar el servicio de planillados para obtener estadísticas
-      const stats = await this.planilladosService.getStatsByLeader(liderId);
-      
-      return stats;
-    } catch (error) {
-      throw error;
-    }
+  asignados: number;
+  pendientes: number;
+  verificados: number;
+  sinVerificar: number;
+}> {
+  try {
+    const leader = await this.findOne(liderId);
+    
+    // Obtener estadísticas directamente desde la base de datos
+    const asignados = await this.planilladoRepository.count({
+      where: { liderId }
+    });
+    
+    const verificados = await this.planilladoRepository.count({
+      where: { liderId, estado: 'verificado' }
+    });
+    
+    const pendientes = await this.planilladoRepository.count({
+      where: { liderId, estado: 'pendiente' }
+    });
+    
+    return {
+      asignados,
+      pendientes: pendientes,
+      verificados,
+      sinVerificar: asignados - verificados
+    };
+  } catch (error) {
+    throw error;
   }
+}
 
   /**
    * Verificar si un líder tiene planillados pendientes de asignar

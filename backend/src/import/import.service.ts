@@ -15,7 +15,6 @@ import {
   ImportMappingDto,
   ImportResultDto,
   ImportErrorDto,
-  BulkImportVoterDto,
   BulkImportLeaderDto,
   BulkImportCandidateDto,
   BulkImportGroupDto,
@@ -224,89 +223,6 @@ export class ImportService {
     }
   }
 
-  // ✅ IMPORTAR VOTANTES
-  async importVoters(mappingDto: ImportMappingDto): Promise<ImportResultDto> {
-    const startTime = Date.now();
-    const errors: ImportErrorDto[] = [];
-    let successCount = 0;
-    let errorCount = 0;
-
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
-      for (let i = 0; i < mappingDto.previewData.length; i++) {
-        const row = mappingDto.previewData[i];
-        const rowNumber = i + 1;
-
-        try {
-          // Mapear datos según configuración
-          const voterData: BulkImportVoterDto = this.mapRowToVoter(row, mappingDto.fieldMappings);
-          
-          // Validar datos requeridos
-          const validation = this.validateVoterData(voterData, rowNumber);
-          if (validation.length > 0) {
-            errors.push(...validation);
-            errorCount++;
-            continue;
-          }
-
-          // Buscar líder si está especificado
-          let leader: Leader | null = null;
-          if (voterData.leaderCedula) {
-            leader = await this.leaderRepository.findOne({
-              where: { cedula: voterData.leaderCedula }
-            });
-            
-            if (!leader) {
-              errors.push({
-                row: rowNumber,
-                field: 'leaderCedula',
-                value: voterData.leaderCedula,
-                error: 'Líder no encontrado',
-                severity: 'warning'
-              });
-            }
-          }
-
-          // Crear o actualizar votante
-          
-
-          successCount++;
-        } catch (error) {
-          errorCount++;
-          errors.push({
-            row: rowNumber,
-            field: 'general',
-            value: null,
-            error: `Error procesando fila: ${error.message}`,
-            severity: 'error'
-          });
-        }
-      }
-
-      await queryRunner.commitTransaction();
-
-      const executionTime = Date.now() - startTime;
-
-      return {
-        success: errorCount === 0,
-        totalRows: mappingDto.previewData.length,
-        successCount,
-        errorCount,
-        errors,
-        warnings: errors.filter(e => e.severity === 'warning').map(e => e.error),
-        executionTime
-      };
-
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw new BadRequestException(`Error en importación: ${error.message}`);
-    } finally {
-      await queryRunner.release();
-    }
-  }
 
   // ✅ IMPORTAR LÍDERES
   async importLeaders(mappingDto: ImportMappingDto): Promise<ImportResultDto> {
@@ -833,70 +749,7 @@ private capitalizeWords(text: string): string {
 }
 
   // ✅ MAPEAR FILA A VOTANTE
-  private mapRowToVoter(row: any, mappings: Record<string, string>): BulkImportVoterDto {
-    const voter: BulkImportVoterDto = {
-      cedula: '',
-      firstName: '',
-      lastName: ''
-    };
-
-    for (const [csvColumn, entityField] of Object.entries(mappings)) {
-      if (row[csvColumn] !== undefined && row[csvColumn] !== null) {
-        const value = String(row[csvColumn]).trim();
-        
-        switch (entityField) {
-          case 'cedula':
-            voter.cedula = value;
-            break;
-          case 'firstName':
-            voter.firstName = value;
-            break;
-          case 'lastName':
-            voter.lastName = value;
-            break;
-          case 'phone':
-            voter.phone = value;
-            break;
-          case 'email':
-            voter.email = value;
-            break;
-          case 'address':
-            voter.address = value;
-            break;
-          case 'neighborhood':
-            voter.neighborhood = value;
-            break;
-          case 'municipality':
-            voter.municipality = value;
-            break;
-          case 'votingPlace':
-            voter.votingPlace = value;
-            break;
-          case 'birthDate':
-            voter.birthDate = value;
-            break;
-          case 'gender':
-            if (['M', 'F', 'Other'].includes(value)) {
-              voter.gender = value as 'M' | 'F' | 'Other';
-            }
-            break;
-          case 'leaderCedula':
-            voter.leaderCedula = value;
-            break;
-          case 'commitment':
-            if (['committed', 'potential', 'undecided', 'opposed'].includes(value)) {
-              voter.commitment = value as 'committed' | 'potential' | 'undecided' | 'opposed';
-            }
-            break;
-          case 'notes':
-            voter.notes = value;
-            break;
-        }
-      }
-    }
-
-    return voter;
-  }
+  
 
   // ✅ MAPEAR FILA A LÍDER
   private mapRowToLeader(row: any, mappings: Record<string, string>): BulkImportLeaderDto {
@@ -1094,64 +947,7 @@ private capitalizeWords(text: string): string {
   }
 
   // ✅ VALIDAR DATOS DE VOTANTE
-  private validateVoterData(data: BulkImportVoterDto, row: number): ImportErrorDto[] {
-    const errors: ImportErrorDto[] = [];
-
-    // Validar campos requeridos
-    if (!data.cedula || data.cedula.trim() === '') {
-      errors.push({
-        row,
-        field: 'cedula',
-        value: data.cedula,
-        error: 'Cédula es requerida',
-        severity: 'error'
-      });
-    }
-
-    if (!data.firstName || data.firstName.trim() === '') {
-      errors.push({
-        row,
-        field: 'firstName',
-        value: data.firstName,
-        error: 'Nombres son requeridos',
-        severity: 'error'
-      });
-    }
-
-    if (!data.lastName || data.lastName.trim() === '') {
-      errors.push({
-        row,
-        field: 'lastName',
-        value: data.lastName,
-        error: 'Apellidos son requeridos',
-        severity: 'error'
-      });
-    }
-
-    // Validar formato de cédula
-    if (data.cedula && !/^\d{8,10}$/.test(data.cedula.replace(/\D/g, ''))) {
-      errors.push({
-        row,
-        field: 'cedula',
-        value: data.cedula,
-        error: 'Cédula debe tener entre 8 y 10 dígitos',
-        severity: 'error'
-      });
-    }
-
-    // Validar email si existe
-    if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-      errors.push({
-        row,
-        field: 'email',
-        value: data.email,
-        error: 'Formato de email inválido',
-        severity: 'warning'
-      });
-    }
-
-    return errors;
-  }
+  
 
   // ✅ VALIDAR DATOS DE LÍDER
   private validateLeaderData(data: BulkImportLeaderDto, row: number): ImportErrorDto[] {

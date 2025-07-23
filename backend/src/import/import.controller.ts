@@ -64,19 +64,6 @@ export class ImportController {
     return this.importService.importPlanillados(mappingDto);
   }
 
-  @Post('voters')
-  async importVoters(@Body() mappingDto: ImportMappingDto): Promise<ImportResultDto> {
-    if (!mappingDto.previewData || mappingDto.previewData.length === 0) {
-      throw new BadRequestException('No hay datos para importar');
-    }
-
-    if (mappingDto.entityType !== 'voters') {
-      throw new BadRequestException('Tipo de entidad debe ser "voters"');
-    }
-
-    return this.importService.importVoters(mappingDto);
-  }
-
   @Post('leaders')
   async importLeaders(@Body() mappingDto: ImportMappingDto): Promise<ImportResultDto> {
     if (!mappingDto.previewData || mappingDto.previewData.length === 0) {

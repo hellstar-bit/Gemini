@@ -1,4 +1,4 @@
-// backend/src/planillados/planillados.service.ts
+// backend/src/planillados/planillados.service.ts - CORREGIDO
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx'; // Importar XLSX
@@ -13,10 +13,12 @@ import {
   PaginatedResponseDto,
   ValidationResultDto,
   DuplicateCheckDto
-} from './dto/planillado.dto';import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+} from './dto/planillado.dto';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { DataSource, IsNull, Not } from 'typeorm'; // IsNull y Not para las nuevas consultas
 import { EventEmitter2 } from '@nestjs/event-emitter'; // Para los eventos
 import { Leader } from '../leaders/entities/leader.entity';
+
 // ✅ NUEVO - Interfaz para las estadísticas de un barrio
 interface BarrioStats {
   total: number;
@@ -32,13 +34,13 @@ interface BarrioStats {
 @Injectable()
 export class PlanilladosService {
   constructor(
-  @InjectRepository(Planillado)
-  private planilladoRepository: Repository<Planillado>,
-  @InjectRepository(Leader) // ✅ NUEVO
-  private leaderRepository: Repository<Leader>,
-  private dataSource: DataSource, // ✅ NUEVO - Para transacciones
-  private eventEmitter: EventEmitter2, // ✅ NUEVO - Para eventos
-) {}
+    @InjectRepository(Planillado)
+    private planilladoRepository: Repository<Planillado>,
+    @InjectRepository(Leader) // ✅ NUEVO
+    private leaderRepository: Repository<Leader>,
+    private dataSource: DataSource, // ✅ NUEVO - Para transacciones
+    private eventEmitter: EventEmitter2, // ✅ NUEVO - Para eventos
+  ) {}
 
   async getPlanilladosPendientesByLiderCedula(cedulaLider: string): Promise<Planillado[]> {
     try {
@@ -83,10 +85,10 @@ export class PlanilladosService {
         whereCondition.id = In(planilladoIds);
       }
 
-      // Ejecutar actualización
+      // ✅ CORRECCIÓN: Usar undefined en lugar de null para cedulaLiderPendiente
       const result = await this.planilladoRepository.update(whereCondition, {
         liderId,
-        cedulaLiderPendiente: null, // Limpiar campo pendiente
+        cedulaLiderPendiente: undefined, // ✅ CAMBIO: undefined en lugar de null
         actualizado: true,
         fechaActualizacion: new Date()
       });
@@ -171,13 +173,14 @@ export class PlanilladosService {
 
       // Limpiar relaciones órfanas
       if (cedulasParaLimpiar.length > 0) {
+        // ✅ CORRECCIÓN: Usar undefined en lugar de null
         const result = await this.planilladoRepository.update(
           { 
             cedulaLiderPendiente: In(cedulasParaLimpiar),
             liderId: IsNull()
           },
           { 
-            cedulaLiderPendiente: null 
+            cedulaLiderPendiente: undefined // ✅ CAMBIO: undefined en lugar de null
           }
         );
 
@@ -224,93 +227,94 @@ export class PlanilladosService {
     };
   }
 
-  // ✅ Obtener estadísticas
+  // ✅ Obtener estadísticas - CORREGIDO PARA INCLUIR TODAS LAS PROPIEDADES
   async getStats(filters: PlanilladoFiltersDto): Promise<PlanilladosStatsResponseDto> {
-  const queryBuilder = this.createQueryBuilder(filters || {});
+    const queryBuilder = this.createQueryBuilder(filters || {});
 
-  // Total y estados
-  const total = await queryBuilder.getCount();
-  const verificados = await this.createQueryBuilder({ ...filters, estado: 'verificado' }).getCount();
-  const pendientes = await this.createQueryBuilder({ ...filters, estado: 'pendiente' }).getCount();
-  const ediles = await this.createQueryBuilder({ ...filters, esEdil: true }).getCount();
+    // Total y estados
+    const total = await queryBuilder.getCount();
+    const verificados = await this.createQueryBuilder({ ...filters, estado: 'verificado' }).getCount();
+    const pendientes = await this.createQueryBuilder({ ...filters, estado: 'pendiente' }).getCount();
+    const ediles = await this.createQueryBuilder({ ...filters, esEdil: true }).getCount();
 
-  // Estadísticas por barrio
-  const porBarrioQuery = this.planilladoRepository
-    .createQueryBuilder('p')
-    .select('p.barrioVive as barrio, COUNT(*) as cantidad')
-    .where('p.barrioVive IS NOT NULL')
-    .groupBy('p.barrioVive')
-    .orderBy('cantidad', 'DESC')
-    .limit(10);
+    // Estadísticas por barrio
+    const porBarrioQuery = this.planilladoRepository
+      .createQueryBuilder('p')
+      .select('p.barrioVive as barrio, COUNT(*) as cantidad')
+      .where('p.barrioVive IS NOT NULL')
+      .groupBy('p.barrioVive')
+      .orderBy('cantidad', 'DESC')
+      .limit(10);
 
-  const barriosResult = await porBarrioQuery.getRawMany();
-  const porBarrio = barriosResult.reduce((acc, item) => {
-    acc[item.barrio] = parseInt(item.cantidad);
-    return acc;
-  }, {});
+    const barriosResult = await porBarrioQuery.getRawMany();
+    const porBarrio = barriosResult.reduce((acc, item) => {
+      acc[item.barrio] = parseInt(item.cantidad);
+      return acc;
+    }, {});
 
-  // Estadísticas por género
-  const porGeneroQuery = this.planilladoRepository
-    .createQueryBuilder('p')
-    .select('p.genero as genero, COUNT(*) as cantidad')
-    .where('p.genero IS NOT NULL')
-    .groupBy('p.genero');
+    // Estadísticas por género
+    const porGeneroQuery = this.planilladoRepository
+      .createQueryBuilder('p')
+      .select('p.genero as genero, COUNT(*) as cantidad')
+      .where('p.genero IS NOT NULL')
+      .groupBy('p.genero');
 
-  const generoResult = await porGeneroQuery.getRawMany();
-  const porGenero = generoResult.reduce((acc, item) => {
-    acc[item.genero] = parseInt(item.cantidad);
-    return acc;
-  }, {});
+    const generoResult = await porGeneroQuery.getRawMany();
+    const porGenero = generoResult.reduce((acc, item) => {
+      acc[item.genero] = parseInt(item.cantidad);
+      return acc;
+    }, {});
 
-  // Estadísticas por edad (calculadas) - SECCIÓN CORREGIDA
-  const today = new Date();
-  const porEdad = {
-    '18-24': 0,
-    '25-34': 0,
-    '35-44': 0,
-    '45-54': 0,
-    '55-64': 0,
-    '65+': 0,
-  };
+    // Estadísticas por edad (calculadas) - SECCIÓN CORREGIDA
+    const today = new Date();
+    const porEdad = {
+      '18-24': 0,
+      '25-34': 0,
+      '35-44': 0,
+      '45-54': 0,
+      '55-64': 0,
+      '65+': 0,
+    };
 
-  const planilladosConEdad = await this.planilladoRepository
-    .createQueryBuilder('p')
-    .where('p.fechaNacimiento IS NOT NULL')
-    .getMany();
+    const planilladosConEdad = await this.planilladoRepository
+      .createQueryBuilder('p')
+      .where('p.fechaNacimiento IS NOT NULL')
+      .getMany();
 
-  planilladosConEdad.forEach(p => {
-    if (p.fechaNacimiento) {
-      // ✅ CORRECCIÓN: Asegurar que fechaNacimiento sea un objeto Date
-      const fechaNacimiento = p.fechaNacimiento instanceof Date 
-        ? p.fechaNacimiento 
-        : new Date(p.fechaNacimiento);
-      
-      // ✅ Verificar que la fecha sea válida
-      if (!isNaN(fechaNacimiento.getTime())) {
-        const edad = today.getFullYear() - fechaNacimiento.getFullYear();
-        const monthDiff = today.getMonth() - fechaNacimiento.getMonth();
+    planilladosConEdad.forEach(p => {
+      if (p.fechaNacimiento) {
+        // ✅ CORRECCIÓN: Asegurar que fechaNacimiento sea un objeto Date
+        const fechaNacimiento = p.fechaNacimiento instanceof Date 
+          ? p.fechaNacimiento 
+          : new Date(p.fechaNacimiento);
         
-        // Ajustar la edad si no ha pasado el cumpleaños este año
-        const edadAjustada = (monthDiff < 0 || (monthDiff === 0 && today.getDate() < fechaNacimiento.getDate())) 
-          ? edad - 1 
-          : edad;
-        
-        // Clasificar por rango de edad
-        if (edadAjustada >= 18 && edadAjustada <= 24) porEdad['18-24']++;
-        else if (edadAjustada <= 34) porEdad['25-34']++;
-        else if (edadAjustada <= 44) porEdad['35-44']++;
-        else if (edadAjustada <= 54) porEdad['45-54']++;
-        else if (edadAjustada <= 64) porEdad['55-64']++;
-        else if (edadAjustada >= 65) porEdad['65+']++;
+        // ✅ Verificar que la fecha sea válida
+        if (!isNaN(fechaNacimiento.getTime())) {
+          const edad = today.getFullYear() - fechaNacimiento.getFullYear();
+          const monthDiff = today.getMonth() - fechaNacimiento.getMonth();
+          
+          // Ajustar la edad si no ha pasado el cumpleaños este año
+          const edadAjustada = (monthDiff < 0 || (monthDiff === 0 && today.getDate() < fechaNacimiento.getDate())) 
+            ? edad - 1 
+            : edad;
+          
+          // Clasificar por rango de edad
+          if (edadAjustada >= 18 && edadAjustada <= 24) porEdad['18-24']++;
+          else if (edadAjustada <= 34) porEdad['25-34']++;
+          else if (edadAjustada <= 44) porEdad['35-44']++;
+          else if (edadAjustada <= 54) porEdad['45-54']++;
+          else if (edadAjustada <= 64) porEdad['55-64']++;
+          else if (edadAjustada >= 65) porEdad['65+']++;
+        }
       }
-    }
-  });
+    });
 
     // Estadísticas por líder
     const porLiderQuery = this.planilladoRepository
       .createQueryBuilder('p')
       .leftJoin('p.lider', 'l')
-      .select('CONCAT(l.firstName, \' \', l.lastName) as lider, COUNT(*) as cantidad')      .where('p.liderId IS NOT NULL')
+      .select('CONCAT(l.firstName, \' \', l.lastName) as lider, COUNT(*) as cantidad')
+      .where('p.liderId IS NOT NULL')
       .groupBy('l.id, l.firstName, l.lastName')
       .orderBy('cantidad', 'DESC')
       .limit(10);
@@ -375,9 +379,21 @@ export class PlanilladosService {
         cedulaLiderPendiente: IsNull()
       }
     });
+
+    // ✅ NUEVAS ESTADÍSTICAS REQUERIDAS
+    const totalConLider = await this.planilladoRepository.count({
+      where: {
+        liderId: Not(IsNull())
+      }
+    });
+
+    const porcentajeAsignacion = total > 0 ? ((totalConLider / total) * 100).toFixed(1) + '%' : '0.0%';
+
     return {
       conLiderPendiente,
       sinLider,
+      totalConLider, // ✅ AGREGADO
+      porcentajeAsignacion, // ✅ AGREGADO
       total,
       verificados,
       pendientes,
@@ -505,87 +521,86 @@ export class PlanilladosService {
 
   // ✅ Exportar a Excel
   async exportToExcel(filters: PlanilladoFiltersDto): Promise<Buffer> {
-  try {
-    // Obtener datos con filtros
-    const queryBuilder = this.createQueryBuilder(filters);
-    queryBuilder.leftJoinAndSelect('planillado.lider', 'lider');
-    queryBuilder.leftJoinAndSelect('planillado.grupo', 'grupo');
-    
-    const planillados = await queryBuilder.getMany();
+    try {
+      // Obtener datos con filtros
+      const queryBuilder = this.createQueryBuilder(filters);
+      queryBuilder.leftJoinAndSelect('planillado.lider', 'lider');
+      queryBuilder.leftJoinAndSelect('planillado.grupo', 'grupo');
+      
+      const planillados = await queryBuilder.getMany();
 
-    // ✅ FORMATEAR DATOS PARA EXCEL
-    const excelData = planillados.map((p, index) => ({
-      'No.': index + 1,
-      'Cédula': p.cedula,
-      'Nombres': p.nombres,
-      'Apellidos': p.apellidos,
-      'Celular': p.celular || '',
-      'Dirección': p.direccion || '',
-      'Barrio': p.barrioVive || '',
-      'Fecha Expedición': p.fechaExpedicion ? 
-        p.fechaExpedicion.toLocaleDateString('es-CO') : '',
-      'Municipio Votación': p.municipioVotacion || '',
-      'Zona y Puesto': p.zonaPuesto || '',
-      'Mesa': p.mesa || '',
-      'Estado': p.estado === 'verificado' ? 'Verificado' : 'Pendiente',
-      'Es Edil': p.esEdil ? 'Sí' : 'No',
-      'Líder': p.lider ? `${p.lider.firstName} ${p.lider.lastName}` : '',
-      'Cédula Líder Pendiente': p.cedulaLiderPendiente || '',
-      'Grupo': p.grupo ? p.grupo.name : '',
-      'Género': p.genero || '',
-      'Fecha Nacimiento': p.fechaNacimiento ? 
-        p.fechaNacimiento.toLocaleDateString('es-CO') : '',
-      'Notas': p.notas || '',
-      'Fecha Creación': p.fechaCreacion.toLocaleDateString('es-CO'),
-      'Última Actualización': p.fechaActualizacion.toLocaleDateString('es-CO')
-    }));
+      // ✅ FORMATEAR DATOS PARA EXCEL
+      const excelData = planillados.map((p, index) => ({
+        'No.': index + 1,
+        'Cédula': p.cedula,
+        'Nombres': p.nombres,
+        'Apellidos': p.apellidos,
+        'Celular': p.celular || '',
+        'Dirección': p.direccion || '',
+        'Barrio': p.barrioVive || '',
+        'Fecha Expedición': p.fechaExpedicion ? 
+          p.fechaExpedicion.toLocaleDateString('es-CO') : '',
+        'Municipio Votación': p.municipioVotacion || '',
+        'Zona y Puesto': p.zonaPuesto || '',
+        'Mesa': p.mesa || '',
+        'Estado': p.estado === 'verificado' ? 'Verificado' : 'Pendiente',
+        'Es Edil': p.esEdil ? 'Sí' : 'No',
+        'Líder': p.lider ? `${p.lider.firstName} ${p.lider.lastName}` : '',
+        'Cédula Líder Pendiente': p.cedulaLiderPendiente || '',
+        'Grupo': p.grupo ? p.grupo.name : '',
+        'Género': p.genero || '',
+        'Fecha Nacimiento': p.fechaNacimiento ? 
+          p.fechaNacimiento.toLocaleDateString('es-CO') : '',
+        'Notas': p.notas || '',
+        'Fecha Creación': p.fechaCreacion.toLocaleDateString('es-CO'),
+        'Última Actualización': p.fechaActualizacion.toLocaleDateString('es-CO')
+      }));
 
-    // ✅ CREAR LIBRO DE EXCEL
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(excelData);
+      // ✅ CREAR LIBRO DE EXCEL
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
 
-    // ✅ CONFIGURAR ANCHOS DE COLUMNA
-    const columnWidths = [
-      { wch: 5 },   // No.
-      { wch: 12 },  // Cédula
-      { wch: 20 },  // Nombres
-      { wch: 20 },  // Apellidos
-      { wch: 12 },  // Celular
-      { wch: 30 },  // Dirección
-      { wch: 15 },  // Barrio
-      { wch: 15 },  // Fecha Expedición
-      { wch: 18 },  // Municipio Votación
-      { wch: 15 },  // Zona y Puesto
-      { wch: 8 },   // Mesa
-      { wch: 12 },  // Estado
-      { wch: 8 },   // Es Edil
-      { wch: 25 },  // Líder
-      { wch: 12 },  // ✅ NUEVO - Cédula Líder Pendiente
-      { wch: 15 },  // Grupo
-      { wch: 8 },   // Género
-      { wch: 15 },  // Fecha Nacimiento
-      { wch: 30 },  // Notas
-      { wch: 15 },  // Fecha Creación
-      { wch: 15 }   // Última Actualización
-    ];
-    worksheet['!cols'] = columnWidths;
+      // ✅ CONFIGURAR ANCHOS DE COLUMNA
+      const columnWidths = [
+        { wch: 5 },   // No.
+        { wch: 12 },  // Cédula
+        { wch: 20 },  // Nombres
+        { wch: 20 },  // Apellidos
+        { wch: 12 },  // Celular
+        { wch: 30 },  // Dirección
+        { wch: 15 },  // Barrio
+        { wch: 15 },  // Fecha Expedición
+        { wch: 18 },  // Municipio Votación
+        { wch: 15 },  // Zona y Puesto
+        { wch: 8 },   // Mesa
+        { wch: 12 },  // Estado
+        { wch: 8 },   // Es Edil
+        { wch: 25 },  // Líder
+        { wch: 12 },  // ✅ NUEVO - Cédula Líder Pendiente
+        { wch: 15 },  // Grupo
+        { wch: 8 },   // Género
+        { wch: 15 },  // Fecha Nacimiento
+        { wch: 30 },  // Notas
+        { wch: 15 },  // Fecha Creación
+        { wch: 15 }   // Última Actualización
+      ];
+      worksheet['!cols'] = columnWidths;
 
-    // ✅ AGREGAR HOJA AL LIBRO
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Planillados');
+      // ✅ AGREGAR HOJA AL LIBRO
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Planillados');
 
-    // ✅ GENERAR BUFFER
-    const excelBuffer = XLSX.write(workbook, { 
-      type: 'buffer', 
-      bookType: 'xlsx' 
-    });
+      // ✅ GENERAR BUFFER
+      const excelBuffer = XLSX.write(workbook, { 
+        type: 'buffer', 
+        bookType: 'xlsx' 
+      });
 
-    return excelBuffer;
+      return excelBuffer;
 
-  } catch (error) {
-    throw new BadRequestException(`Error generando Excel: ${error.message}`);
+    } catch (error) {
+      throw new BadRequestException(`Error generando Excel: ${error.message}`);
+    }
   }
-}
- 
 
   // ✅ Obtener barrios únicos
   async getUniqueBarrios(): Promise<string[]> {
@@ -670,143 +685,143 @@ export class PlanilladosService {
   }
 
   async getGeographicData(filters: PlanilladoFiltersDto = {}) {
-  try {
-    // 1. Cargar el GeoJSON base
-    const geoJsonPath = path.join(process.cwd(), 'public', 'data', 'barranquilla-barrios.geojson');
-    console.log('🔍 Buscando archivo en:', geoJsonPath);
-console.log('📁 Directorio actual:', __dirname);
-console.log('✅ Archivo existe:', fs.existsSync(geoJsonPath));
-if (fs.existsSync(geoJsonPath)) {
-  console.log('📏 Tamaño del archivo:', fs.statSync(geoJsonPath).size, 'bytes');
-}
-    const geoJsonData = JSON.parse(fs.readFileSync(geoJsonPath, 'utf8'));
+    try {
+      // 1. Cargar el GeoJSON base
+      const geoJsonPath = path.join(process.cwd(), 'public', 'data', 'barranquilla-barrios.geojson');
+      console.log('🔍 Buscando archivo en:', geoJsonPath);
+      console.log('📁 Directorio actual:', __dirname);
+      console.log('✅ Archivo existe:', fs.existsSync(geoJsonPath));
+      if (fs.existsSync(geoJsonPath)) {
+        console.log('📏 Tamaño del archivo:', fs.statSync(geoJsonPath).size, 'bytes');
+      }
+      const geoJsonData = JSON.parse(fs.readFileSync(geoJsonPath, 'utf8'));
 
-    // 2. Obtener estadísticas por barrio con filtros aplicados
-    const barrioStats = await this.getBarrioStatistics(filters);
+      // 2. Obtener estadísticas por barrio con filtros aplicados
+      const barrioStats = await this.getBarrioStatistics(filters);
 
-    // 3. Combinar GeoJSON con datos de planillados
-    const enrichedFeatures = geoJsonData.features.map(feature => {
-      const nombreBarrio = feature.properties.nombre;
-      const stats = barrioStats[nombreBarrio] || {
-        total: 0,
-        verificados: 0,
-        pendientes: 0,
-        ediles: 0,
-        lideres: 0,
-        grupos: 0,
-        densidad: 'sin-datos',
-        porcentaje: '0.0'
-      };
+      // 3. Combinar GeoJSON con datos de planillados
+      const enrichedFeatures = geoJsonData.features.map(feature => {
+        const nombreBarrio = feature.properties.nombre;
+        const stats = barrioStats[nombreBarrio] || {
+          total: 0,
+          verificados: 0,
+          pendientes: 0,
+          ediles: 0,
+          lideres: 0,
+          grupos: 0,
+          densidad: 'sin-datos',
+          porcentaje: '0.0'
+        };
+
+        return {
+          ...feature,
+          properties: {
+            ...feature.properties,
+            planillados: stats
+          }
+        };
+      });
+
+      // 4. Calcular métricas globales
+      const allTotals = Object.values(barrioStats).map(stats => stats.total);
+      const totalPlanillados = allTotals.reduce((sum, total) => sum + total, 0);
+      const maxPlanillados = allTotals.length > 0 ? Math.max(...allTotals) : 0;
+      const minPlanillados = allTotals.length > 0 ? Math.min(...allTotals.filter(t => t > 0)) : 0;
 
       return {
-        ...feature,
-        properties: {
-          ...feature.properties,
-          planillados: stats
+        type: 'FeatureCollection',
+        features: enrichedFeatures,
+        metadata: {
+          totalBarrios: enrichedFeatures.length,
+          totalPlanillados,
+          maxPlanillados,
+          minPlanillados,
+          promedioBarrio: enrichedFeatures.length > 0 ? Math.round(totalPlanillados / enrichedFeatures.length) : 0,
+          filtrosAplicados: filters
         }
+      };
+    } catch (error) {
+      console.error('Error loading geographic data:', error);
+      throw new Error('Error al cargar datos geográficos');
+    }
+  }
+
+  private async getBarrioStatistics(filters: PlanilladoFiltersDto): Promise<Record<string, BarrioStats>> {
+    // Construir query base
+    let query = this.planilladoRepository.createQueryBuilder('p')
+      .leftJoin('p.lider', 'l')
+      .leftJoin('p.grupo', 'g');
+
+    // Aplicar filtros si existen
+    if (filters.estado) {
+      query = query.andWhere('p.estado = :estado', { estado: filters.estado });
+    }
+    if (filters.liderId) {
+      query = query.andWhere('p.liderId = :liderId', { liderId: filters.liderId });
+    }
+    if (filters.grupoId) {
+      query = query.andWhere('p.grupoId = :grupoId', { grupoId: filters.grupoId });
+    }
+    if (filters.esEdil !== undefined) {
+      query = query.andWhere('p.esEdil = :esEdil', { esEdil: filters.esEdil });
+    }
+    if (filters.genero) {
+      query = query.andWhere('p.genero = :genero', { genero: filters.genero });
+    }
+    if (filters.fechaDesde) {
+      query = query.andWhere('p.fechaCreacion >= :fechaDesde', { fechaDesde: filters.fechaDesde });
+    }
+    if (filters.fechaHasta) {
+      query = query.andWhere('p.fechaCreacion <= :fechaHasta', { fechaHasta: filters.fechaHasta });
+    }
+
+    // Obtener datos agrupados por barrio
+    const rawResults = await query
+      .select([
+        'p.barrioVive as barrio',
+        'COUNT(*) as total',
+        'SUM(CASE WHEN p.estado = "verificado" THEN 1 ELSE 0 END) as verificados',
+        'SUM(CASE WHEN p.estado = "pendiente" THEN 1 ELSE 0 END) as pendientes',
+        'SUM(CASE WHEN p.esEdil = true THEN 1 ELSE 0 END) as ediles',
+        'COUNT(DISTINCT p.liderId) as lideres',
+        'COUNT(DISTINCT p.grupoId) as grupos'
+      ])
+      .where('p.barrioVive IS NOT NULL')
+      .groupBy('p.barrioVive')
+      .getRawMany();
+
+    // Procesar resultados y calcular densidades
+    const statistics: Record<string, BarrioStats> = {};
+    const totales = rawResults.map(r => parseInt(r.total));
+    const max = Math.max(...totales);
+    const min = Math.min(...totales);
+    const range = max - min;
+
+    rawResults.forEach(result => {
+      const total = parseInt(result.total);
+      let densidad: BarrioStats['densidad'] = 'sin-datos';
+      
+      if (range > 0) {
+        const porcentaje = (total - min) / range;
+        if (porcentaje >= 0.7) densidad = 'alta';
+        else if (porcentaje >= 0.3) densidad = 'media';
+        else densidad = 'baja';
+      }
+
+      statistics[result.barrio] = {
+        total,
+        verificados: parseInt(result.verificados),
+        pendientes: parseInt(result.pendientes),
+        ediles: parseInt(result.ediles),
+        lideres: parseInt(result.lideres),
+        grupos: parseInt(result.grupos),
+        densidad,
+        porcentaje: total > 0 ? ((total / totales.reduce((a, b) => a + b, 0)) * 100).toFixed(1) : '0.0'
       };
     });
 
-    // 4. Calcular métricas globales
-    const allTotals = Object.values(barrioStats).map(stats => stats.total);
-    const totalPlanillados = allTotals.reduce((sum, total) => sum + total, 0);
-    const maxPlanillados = allTotals.length > 0 ? Math.max(...allTotals) : 0;
-    const minPlanillados = allTotals.length > 0 ? Math.min(...allTotals.filter(t => t > 0)) : 0;
-
-    return {
-      type: 'FeatureCollection',
-      features: enrichedFeatures,
-      metadata: {
-        totalBarrios: enrichedFeatures.length,
-        totalPlanillados,
-        maxPlanillados,
-        minPlanillados,
-        promedioBarrio: enrichedFeatures.length > 0 ? Math.round(totalPlanillados / enrichedFeatures.length) : 0,
-        filtrosAplicados: filters
-      }
-    };
-  } catch (error) {
-    console.error('Error loading geographic data:', error);
-    throw new Error('Error al cargar datos geográficos');
+    return statistics;
   }
-}
-
-private async getBarrioStatistics(filters: PlanilladoFiltersDto): Promise<Record<string, BarrioStats>> {
-  // Construir query base
-  let query = this.planilladoRepository.createQueryBuilder('p')
-    .leftJoin('p.lider', 'l')
-    .leftJoin('p.grupo', 'g');
-
-  // Aplicar filtros si existen
-  if (filters.estado) {
-    query = query.andWhere('p.estado = :estado', { estado: filters.estado });
-  }
-  if (filters.liderId) {
-    query = query.andWhere('p.liderId = :liderId', { liderId: filters.liderId });
-  }
-  if (filters.grupoId) {
-    query = query.andWhere('p.grupoId = :grupoId', { grupoId: filters.grupoId });
-  }
-  if (filters.esEdil !== undefined) {
-    query = query.andWhere('p.esEdil = :esEdil', { esEdil: filters.esEdil });
-  }
-  if (filters.genero) {
-    query = query.andWhere('p.genero = :genero', { genero: filters.genero });
-  }
-  if (filters.fechaDesde) {
-    query = query.andWhere('p.fechaCreacion >= :fechaDesde', { fechaDesde: filters.fechaDesde });
-  }
-  if (filters.fechaHasta) {
-    query = query.andWhere('p.fechaCreacion <= :fechaHasta', { fechaHasta: filters.fechaHasta });
-  }
-
-  // Obtener datos agrupados por barrio
-  const rawResults = await query
-    .select([
-      'p.barrioVive as barrio',
-      'COUNT(*) as total',
-      'SUM(CASE WHEN p.estado = "verificado" THEN 1 ELSE 0 END) as verificados',
-      'SUM(CASE WHEN p.estado = "pendiente" THEN 1 ELSE 0 END) as pendientes',
-      'SUM(CASE WHEN p.esEdil = true THEN 1 ELSE 0 END) as ediles',
-      'COUNT(DISTINCT p.liderId) as lideres',
-      'COUNT(DISTINCT p.grupoId) as grupos'
-    ])
-    .where('p.barrioVive IS NOT NULL')
-    .groupBy('p.barrioVive')
-    .getRawMany();
-
-  // Procesar resultados y calcular densidades
-  const statistics: Record<string, BarrioStats> = {};
-  const totales = rawResults.map(r => parseInt(r.total));
-  const max = Math.max(...totales);
-  const min = Math.min(...totales);
-  const range = max - min;
-
-  rawResults.forEach(result => {
-    const total = parseInt(result.total);
-    let densidad: BarrioStats['densidad'] = 'sin-datos';
-    
-    if (range > 0) {
-      const porcentaje = (total - min) / range;
-      if (porcentaje >= 0.7) densidad = 'alta';
-      else if (porcentaje >= 0.3) densidad = 'media';
-      else densidad = 'baja';
-    }
-
-    statistics[result.barrio] = {
-      total,
-      verificados: parseInt(result.verificados),
-      pendientes: parseInt(result.pendientes),
-      ediles: parseInt(result.ediles),
-      lideres: parseInt(result.lideres),
-      grupos: parseInt(result.grupos),
-      densidad,
-      porcentaje: total > 0 ? ((total / totales.reduce((a, b) => a + b, 0)) * 100).toFixed(1) : '0.0'
-    };
-  });
-
-  return statistics;
-}
 
   // ✅ Verificar duplicados
   async checkDuplicates(cedula: string): Promise<DuplicateCheckDto> {

@@ -52,11 +52,11 @@ export const useWebSocket = (config: WebSocketConfig = {}) => {
   const reconnectTimeoutRef = useRef<number | null>(null);
 
   const {
-    url = 'http://localhost:3001',
-    autoConnect = true,
-    reconnection = true,
-    reconnectionDelay = 3000
-  } = config;
+  url = import.meta.env.VITE_WEBSOCKET_URL || 'http://localhost:3000',
+  autoConnect = true,
+  reconnection = true,
+  reconnectionDelay = 3000
+} = config;
 
   // =====================================
   // CONEXIÓN Y DESCONEXIÓN

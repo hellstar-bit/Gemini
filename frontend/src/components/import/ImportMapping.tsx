@@ -14,7 +14,20 @@ import { addNotification } from '../../store/slices/appSlice';
 // =====================================
 // ✅ TIPOS E INTERFACES
 // =====================================
+// ✅ AGREGAR esta interface al inicio de ImportMapping.tsx
 
+interface ImportMappingProps {
+  preview: {
+    data: Record<string, any>[];
+    headers: string[];
+    totalRows: number;
+    sampleRows: Record<string, any>[];
+  };
+  entityType: 'planillados' | 'voters' | 'leaders' | 'candidates' | 'groups';
+  onSubmit: (mappings: Record<string, string>) => void;
+  onMappingChange: (mappings: Record<string, string>) => void; // ✅ AGREGAR ESTA LÍNEA
+  onBack: () => void;
+}
 interface ImportMappingProps {
   preview: {
     data: Record<string, any>[];

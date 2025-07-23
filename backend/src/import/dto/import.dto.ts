@@ -1,9 +1,9 @@
-// backend/src/import/dto/import.dto.ts - ACTUALIZADO
+// backend/src/import/dto/import.dto.ts - CORREGIDO
 
 import { IsString, IsOptional, IsEmail, IsDateString, IsEnum, IsBoolean, IsNumber, IsArray, ValidateNested } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
-// ✅ DTO para importación masiva de planillados - ACTUALIZADO
+// ✅ DTO CORREGIDO para importación masiva de planillados
 export class BulkImportPlanilladoDto {
   @IsString()
   cedula: string;
@@ -42,13 +42,141 @@ export class BulkImportPlanilladoDto {
   @IsString()
   mesa?: string;
 
-  // ✅ NUEVO CAMPO - Cédula del líder
+  // ✅ AGREGADO - Cédula del líder pendiente
   @IsOptional()
   @IsString()
-  cedulaLider?: string;
+  liderCedula?: string;
+
+  // ✅ AGREGADO - Fecha de nacimiento
+  @IsOptional()
+  @IsDateString()
+  fechaNacimiento?: string;
+
+  // ✅ AGREGADO - Género
+  @IsOptional()
+  @IsEnum(['M', 'F', 'Otro'])
+  genero?: 'M' | 'F' | 'Otro';
+
+  // ✅ AGREGADO - Notas
+  @IsOptional()
+  @IsString()
+  notas?: string;
 }
 
-// ✅ NUEVO DTO - Para relacionar planillados pendientes
+// ✅ DTO CORREGIDO para importación masiva de líderes
+export class BulkImportLeaderDto {
+  @IsString()
+  cedula: string;
+
+  @IsString()
+  firstName: string;
+
+  @IsString()
+  lastName: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  neighborhood?: string;
+
+  @IsOptional()
+  @IsString()
+  municipality?: string;
+
+  @IsOptional()
+  @IsDateString()
+  birthDate?: string;
+
+  @IsOptional()
+  @IsEnum(['M', 'F', 'Other'])
+  gender?: 'M' | 'F' | 'Other';
+
+  @IsOptional()
+  @IsNumber()
+  meta?: number;
+
+  @IsOptional()
+  @IsString()
+  groupName?: string; // Para mapear por nombre de grupo
+}
+
+// ✅ DTO CORREGIDO para importación masiva de candidatos
+export class BulkImportCandidateDto {
+  @IsString()
+  name: string;
+
+  @IsEmail()
+  email: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsNumber()
+  meta?: number;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  position?: string;
+
+  @IsOptional()
+  @IsString()
+  party?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+// ✅ DTO CORREGIDO para importación masiva de grupos
+export class BulkImportGroupDto {
+  @IsString()
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  zone?: string;
+
+  @IsOptional()
+  @IsNumber()
+  meta?: number;
+
+  @IsOptional()
+  @IsString()
+  candidateName?: string; // Para mapear por nombre de candidato
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+// ✅ DTO LEGACY para compatibilidad (renombrado de planillados)
+export class BulkImportVoterDto extends BulkImportPlanilladoDto {
+  // Hereda todos los campos de BulkImportPlanilladoDto
+  // Mantenido para compatibilidad con código existente
+}
+
+// ✅ DTO para relacionar planillados pendientes
 export class RelacionarPlanilladosPendientesDto {
   @IsString()
   cedulaLider: string;
@@ -62,8 +190,7 @@ export class RelacionarPlanilladosPendientesDto {
   planilladoIds?: number[];
 }
 
-// DTOs existentes actualizados...
-
+// ✅ DTOs para el flujo de importación
 export class ImportPreviewDto {
   data: Record<string, any>[];
   headers: string[];
@@ -101,7 +228,7 @@ export class ImportErrorDto {
   severity: 'error' | 'warning';
 }
 
-// ✅ NUEVO DTO - Respuesta de planillados pendientes
+// ✅ DTO de respuesta para planillados pendientes
 export class PlanilladosPendientesResponseDto {
   planillados: {
     id: number;
