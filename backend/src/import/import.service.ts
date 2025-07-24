@@ -101,141 +101,153 @@ export class ImportService {
 
   // ✅ IMPORTAR PLANILLADOS
   async importPlanillados(mappingDto: ImportMappingDto): Promise<ImportResultDto> {
-  const startTime = Date.now();
-  const errors: ImportErrorDto[] = [];
-  let successCount = 0;
-  let errorCount = 0;
+    const startTime = Date.now();
+    const errors: ImportErrorDto[] = [];
+    let successCount = 0;
+    let errorCount = 0;
 
-  const queryRunner = this.dataSource.createQueryRunner();
-  await queryRunner.connect();
-  await queryRunner.startTransaction();
+    console.log('🚀 === INICIO IMPORTACIÓN PLANILLADOS ===');
+    console.log('🚀 Total filas a procesar:', mappingDto.previewData.length);
+    console.log('🚀 Mappings recibidos:', mappingDto.fieldMappings);
 
-  try {
-    for (let i = 0; i < mappingDto.previewData.length; i++) {
-      const row = mappingDto.previewData[i];
-      const rowNumber = i + 1;
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-      try {
-        // Mapear datos según configuración
-        const planilladoData: BulkImportPlanilladoDto = this.mapRowToPlanillado(row, mappingDto.fieldMappings);
-        
-        // ✅ Debug específico para cédula líder
-        console.log(`🔍 Fila ${rowNumber}: Cédula líder = "${planilladoData.liderCedula}"`);
-        
-        // Validar datos requeridos
-        const validation = this.validatePlanilladoData(planilladoData, rowNumber);
-        if (validation.length > 0) {
-          errors.push(...validation);
-          errorCount++;
-          continue;
-        }
+    try {
+      for (let i = 0; i < mappingDto.previewData.length; i++) {
+        const row = mappingDto.previewData[i];
+        const rowNumber = i + 1;
 
-        // ✅ MEJORAR BÚSQUEDA DE LÍDER
-        let leader: Leader | null = null;
-        let cedulaLiderPendiente: string | null = null;
-        
-        if (planilladoData.liderCedula && planilladoData.liderCedula.trim() !== '') {
-          const cedulaLider = planilladoData.liderCedula.trim();
-          console.log(`🔍 Buscando líder con cédula: "${cedulaLider}"`);
+        console.log(`\n📋 === PROCESANDO FILA ${rowNumber} ===`);
+
+        try {
+          // ✅ MAPEAR DATOS
+          const planilladoData: BulkImportPlanilladoDto = this.mapRowToPlanillado(row, mappingDto.fieldMappings);
           
-          leader = await this.leaderRepository.findOne({
-            where: { cedula: cedulaLider }
-          });
-          
-          if (leader) {
-            console.log(`✅ Líder encontrado: ${leader.firstName} ${leader.lastName}`);
-          } else {
-            console.log(`⚠️ Líder no encontrado para cédula: ${cedulaLider}`);
-            cedulaLiderPendiente = cedulaLider; // ✅ Guardar para asignación posterior
-            
-            errors.push({
-              row: rowNumber,
-              field: 'liderCedula',
-              value: cedulaLider,
-              error: 'Líder no encontrado - se guardará como pendiente',
-              severity: 'warning'
-            });
+          // ✅ VALIDAR DATOS MÍNIMOS
+          if (!planilladoData.cedula || !planilladoData.nombres || !planilladoData.apellidos) {
+            throw new Error('Faltan datos obligatorios: cédula, nombres o apellidos');
           }
-        }
 
-        // Crear o actualizar planillado
-        let planillado = await this.planilladoRepository.findOne({
-          where: { cedula: planilladoData.cedula }
-        });
+          // ✅ PROCESAR CÉDULA LÍDER
+          let leader: Leader | null = null;
+          let cedulaLiderPendiente: string | null = null;
+          
+          if (planilladoData.liderCedula && planilladoData.liderCedula.trim() !== '') {
+            const cedulaLider = planilladoData.liderCedula.trim();
+            console.log(`🔍 Buscando líder con cédula: "${cedulaLider}"`);
+            
+            leader = await this.leaderRepository.findOne({
+              where: { cedula: cedulaLider }
+            });
+            
+            if (leader) {
+              console.log(`✅ ¡LÍDER ENCONTRADO!: ${leader.firstName} ${leader.lastName} (ID: ${leader.id})`);
+            } else {
+              console.log(`⚠️ Líder no encontrado para cédula: ${cedulaLider} - Se guardará como pendiente`);
+              cedulaLiderPendiente = cedulaLider;
+              
+              errors.push({
+                row: rowNumber,
+                field: 'liderCedula',
+                value: cedulaLider,
+                error: 'Líder no encontrado - se guardará como pendiente',
+                severity: 'warning'
+              });
+            }
+          } else {
+            console.log(`ℹ️ Sin cédula de líder para esta fila`);
+          }
 
-        const planilladoEntity = {
-          nombres: planilladoData.nombres,
-          apellidos: planilladoData.apellidos,
-          celular: planilladoData.celular || undefined,
-          direccion: planilladoData.direccion || undefined,
-          barrioVive: planilladoData.barrioVive || undefined,
-          fechaExpedicion: planilladoData.fechaExpedicion ? 
-            new Date(planilladoData.fechaExpedicion) : undefined,
-          departamentoVotacion: planilladoData.departamentoVotacion || undefined,
-          municipioVotacion: planilladoData.municipioVotacion || undefined,
-          direccionVotacion: planilladoData.direccionVotacion || undefined,
-          zonaPuesto: planilladoData.zonaPuesto || undefined,
-          mesa: planilladoData.mesa || undefined,
-          fechaNacimiento: planilladoData.fechaNacimiento ?
-            new Date(planilladoData.fechaNacimiento) : undefined,
-          genero: planilladoData.genero || undefined,
-          notas: planilladoData.notas || undefined,
-          // ✅ ASIGNAR LÍDER CORRECTAMENTE
-          liderId: leader?.id || undefined,
-          cedulaLiderPendiente: cedulaLiderPendiente || undefined, // ✅ Nuevo campo
-          actualizado: true
-        };
-
-        if (planillado) {
-          // Actualizar existente
-          await queryRunner.manager.update(Planillado, { id: planillado.id }, planilladoEntity);
-          console.log(`✅ Planillado actualizado: ${planilladoData.cedula}`);
-        } else {
-          // Crear nuevo
-          planillado = queryRunner.manager.create(Planillado, {
-            cedula: planilladoData.cedula,
-            ...planilladoEntity
+          // ✅ BUSCAR PLANILLADO EXISTENTE
+          let planillado = await this.planilladoRepository.findOne({
+            where: { cedula: planilladoData.cedula }
           });
-          await queryRunner.manager.save(planillado);
-          console.log(`✅ Planillado creado: ${planilladoData.cedula}`);
+
+          // ✅ PREPARAR DATOS PARA GUARDAR
+          const planilladoEntity = {
+            nombres: planilladoData.nombres,
+            apellidos: planilladoData.apellidos,
+            celular: planilladoData.celular || undefined,
+            direccion: planilladoData.direccion || null,
+            barrioVive: planilladoData.barrioVive || null,
+            fechaExpedicion: planilladoData.fechaExpedicion ? 
+              new Date(planilladoData.fechaExpedicion) : null,
+            departamentoVotacion: planilladoData.departamentoVotacion || null,
+            municipioVotacion: planilladoData.municipioVotacion || null,
+            direccionVotacion: planilladoData.direccionVotacion || null,
+            zonaPuesto: planilladoData.zonaPuesto || null,
+            mesa: planilladoData.mesa || null,
+            fechaNacimiento: planilladoData.fechaNacimiento ?
+              new Date(planilladoData.fechaNacimiento) : null,
+            genero: planilladoData.genero || null,
+            notas: planilladoData.notas || null,
+            // ✅ ASIGNAR LÍDER
+            liderId: leader?.id || undefined,
+            cedulaLiderPendiente: cedulaLiderPendiente || undefined,
+            actualizado: true,
+            fechaActualizacion: new Date()
+          };
+
+          console.log(`💾 Datos a guardar:`, {
+            cedula: planilladoData.cedula,
+            liderId: planilladoEntity.liderId,
+            cedulaLiderPendiente: planilladoEntity.cedulaLiderPendiente
+          });
+
+          if (planillado) {
+            // ✅ ACTUALIZAR EXISTENTE
+            await queryRunner.manager.update(Planillado, { id: planillado.id }, planilladoEntity);
+            console.log(`✅ PLANILLADO ACTUALIZADO: ${planilladoData.cedula}`);
+          } else {
+            // ✅ CREAR NUEVO  
+            planillado = queryRunner.manager.create(Planillado, {
+              cedula: planilladoData.cedula,
+              ...planilladoEntity
+            });
+            await queryRunner.manager.save(planillado);
+            console.log(`✅ PLANILLADO CREADO: ${planilladoData.cedula}`);
+          }
+
+          successCount++;
+
+        } catch (rowError) {
+          console.error(`❌ ERROR EN FILA ${rowNumber}:`, rowError);
+          errors.push({
+            row: rowNumber,
+            field: 'general',
+            value: '',
+            error: rowError.message || 'Error desconocido',
+            severity: 'error'
+          });
+          errorCount++;
         }
-
-        successCount++;
-
-      } catch (rowError) {
-        console.error(`❌ Error en fila ${rowNumber}:`, rowError);
-        errors.push({
-          row: rowNumber,
-          field: 'general',
-          value: '',
-          error: rowError.message || 'Error desconocido',
-          severity: 'error'
-        });
-        errorCount++;
       }
+
+      await queryRunner.commitTransaction();
+      console.log(`🎉 IMPORTACIÓN COMPLETADA: ${successCount} éxitos, ${errorCount} errores`);
+
+      const result: ImportResultDto = {
+        success: true,
+        totalRows: mappingDto.previewData.length,
+        successCount,
+        errorCount,
+        errors,
+        warnings: [],
+        executionTime: Date.now() - startTime
+      };
+
+      return result;
+
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      console.error('❌ ERROR GENERAL EN IMPORTACIÓN:', error);
+      throw new BadRequestException(`Error en importación: ${error.message}`);
+    } finally {
+      await queryRunner.release();
     }
-
-    await queryRunner.commitTransaction();
-
-    const result: ImportResultDto = {
-      success: true,
-      totalRows: mappingDto.previewData.length, // ✅ CORREGIR: era totalProcessed
-      successCount,
-      errorCount,
-      errors,
-      warnings: [], // ✅ AGREGAR: warnings array requerido
-      executionTime: Date.now() - startTime // ✅ CORREGIR: era processingTime
-    };
-
-    return result;
-
-  } catch (error) {
-    await queryRunner.rollbackTransaction();
-    throw new BadRequestException(`Error en importación: ${error.message}`);
-  } finally {
-    await queryRunner.release();
   }
-}
 
 
   // ✅ IMPORTAR LÍDERES
@@ -693,93 +705,98 @@ export class ImportService {
 
   // ✅ MAPEAR FILA A PLANILLADO
   private mapRowToPlanillado(row: any, mappings: Record<string, string>): BulkImportPlanilladoDto {
-  const planillado: BulkImportPlanilladoDto = {
-    cedula: '',
-    nombres: '',
-    apellidos: '',
-    departamentoVotacion: '',
-    direccionVotacion: '',
-    grupoNombre: '',
-    // ✅ CORREGIR: usar el nombre correcto del campo
-    liderCedula: undefined
-  };
+    console.log('🔍 === INICIO MAPEO ===');
+    console.log('🔍 Row recibida:', row);
+    console.log('🔍 Mappings recibidos:', mappings);
+    console.log('🔍 Claves disponibles en row:', Object.keys(row));
 
-  // Debug logs
-  console.log('🔍 Mapping row:', row);
-  console.log('🔍 Mappings received:', mappings);
+    const planillado: BulkImportPlanilladoDto = {
+      cedula: '',
+      nombres: '',
+      apellidos: '',
+      // ✅ ASEGURAR INICIALIZACIÓN
+      liderCedula: undefined
+    };
 
-  for (const [entityField, csvColumn] of Object.entries(mappings)) {
-    if (row[csvColumn] !== undefined && row[csvColumn] !== null) {
-      let value = String(row[csvColumn]).trim();
+    // ✅ MAPEO CAMPO POR CAMPO
+    for (const [entityField, csvColumn] of Object.entries(mappings)) {
+      const rawValue = row[csvColumn];
       
-      console.log(`🔍 Mapping ${csvColumn} -> ${entityField}: "${value}"`);
-      
-      switch (entityField) {
-        case 'cedula':
-          planillado.cedula = value;
-          break;
-        case 'nombres':
-          planillado.nombres = this.capitalizeWords(value);
-          break;
-        case 'apellidos':
-          planillado.apellidos = this.capitalizeWords(value);
-          break;
-        case 'celular':
-          planillado.celular = value;
-          break;
-        case 'direccion':
-          planillado.direccion = value;
-          break;
-        case 'barrioVive':
-          planillado.barrioVive = this.normalizeBarrio(value);
-          break;
-        case 'fechaExpedicion':
-          planillado.fechaExpedicion = value;
-          break;
-        case 'departamentoVotacion':
-          planillado.departamentoVotacion = value;
-          break;
-        case 'municipioVotacion':
-          planillado.municipioVotacion = this.capitalizeWords(value);
-          break;
-        case 'direccionVotacion':
-          planillado.direccionVotacion = value;
-          break;
-        case 'zonaPuesto':
-          planillado.zonaPuesto = value;
-          break;
-        case 'mesa':
-          planillado.mesa = value;
-          break;
-        // ✅ ESTE ES EL MAPEO CORRECTO PARA CÉDULA LÍDER
-        case 'liderCedula':
-          planillado.liderCedula = value;
-          console.log(`✅ Cédula de líder mapeada: ${value}`);
-          break;
-        case 'grupoNombre':
-          planillado.grupoNombre = value;
-          break;
-        case 'fechaNacimiento':
-          planillado.fechaNacimiento = value;
-          break;
-        case 'genero':
-          planillado.genero = value as 'M' | 'F' | 'Otro';
-          break;
-        case 'notas':
-          planillado.notas = value;
-          break;
-        default:
-          console.log(`⚠️ Campo no reconocido: ${entityField}`);
-          break;
+      if (rawValue !== undefined && rawValue !== null && rawValue !== '') {
+        const value = String(rawValue).trim();
+        
+        console.log(`🔍 Mapeando: ${csvColumn} (${rawValue}) -> ${entityField} = "${value}"`);
+        
+        switch (entityField) {
+          case 'cedula':
+            planillado.cedula = value;
+            break;
+          case 'nombres':
+            planillado.nombres = this.capitalizeWords(value);
+            break;
+          case 'apellidos':
+            planillado.apellidos = this.capitalizeWords(value);
+            break;
+          case 'celular':
+            planillado.celular = value;
+            break;
+          case 'direccion':
+            planillado.direccion = value;
+            break;
+          case 'barrioVive':
+            planillado.barrioVive = this.normalizeBarrio(value);
+            break;
+          case 'fechaExpedicion':
+            planillado.fechaExpedicion = value;
+            break;
+          case 'departamentoVotacion':
+            planillado.departamentoVotacion = value;
+            break;
+          case 'municipioVotacion':
+            planillado.municipioVotacion = this.capitalizeWords(value);
+            break;
+          case 'direccionVotacion':
+            planillado.direccionVotacion = value;
+            break;
+          case 'zonaPuesto':
+            planillado.zonaPuesto = value;
+            break;
+          case 'mesa':
+            planillado.mesa = value;
+            break;
+          // ✅ MAPEO CRÍTICO DE CÉDULA LÍDER
+          case 'liderCedula':
+            planillado.liderCedula = value;
+            console.log(`✅ ¡CÉDULA LÍDER MAPEADA EXITOSAMENTE!: "${value}"`);
+            break;
+          case 'grupoNombre':
+            planillado.grupoNombre = value;
+            break;
+          case 'fechaNacimiento':
+            planillado.fechaNacimiento = value;
+            break;
+          case 'genero':
+            planillado.genero = value as 'M' | 'F' | 'Otro';
+            break;
+          case 'notas':
+            planillado.notas = value;
+            break;
+          default:
+            console.log(`⚠️ Campo no reconocido: ${entityField} = ${value}`);
+            break;
+        }
+      } else {
+        console.log(`⚠️ Campo vacío o nulo: ${csvColumn} -> ${entityField}`);
       }
     }
-  }
 
-  console.log('🔍 Final mapped planillado:', planillado);
-  console.log('🔍 Cédula líder final:', planillado.liderCedula);
-  
-  return planillado;
-}
+    console.log('🔍 === RESULTADO FINAL DEL MAPEO ===');
+    console.log('🔍 Planillado mapeado:', planillado);
+    console.log('🔍 Cédula líder final:', planillado.liderCedula);
+    console.log('🔍 === FIN MAPEO ===');
+    
+    return planillado;
+  }
 
 // ✅ AGREGAR ESTOS MÉTODOS AUXILIARES SI NO EXISTEN
 private capitalizeWords(text: string): string {

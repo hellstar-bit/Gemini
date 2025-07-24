@@ -366,51 +366,6 @@ export class EstadisticasPendientesDto {
   resumen: string;
 }
 
-export class BulkImportPlanilladoDto {
-  @IsString()
-  @Length(6, 12)
-  cedula: string;
-
-  @IsString()
-  nombres: string;
-
-  @IsString()
-  apellidos: string;
-
-  @IsOptional()
-  @IsString()
-  celular?: string;
-
-  @IsOptional()
-  @IsString()
-  direccion?: string;
-
-  @IsOptional()
-  @IsString()
-  barrioVive?: string;
-
-  @IsOptional()
-  @IsString()
-  fechaExpedicion?: string;
-
-  @IsOptional()
-  @IsString()
-  municipioVotacion?: string;
-
-  @IsOptional()
-  @IsString()
-  zonaPuesto?: string;
-
-  @IsOptional()
-  @IsString()
-  mesa?: string;
-
-  // ✅ NUEVO CAMPO PARA IMPORTACIÓN
-  @IsOptional()
-  @IsString()
-  @Length(6, 12)
-  cedulaLider?: string;
-}
 
 // =====================================
 // ✅ DTOs PARA ACCIONES MASIVAS

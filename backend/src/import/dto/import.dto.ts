@@ -32,7 +32,15 @@ export class BulkImportPlanilladoDto {
 
   @IsOptional()
   @IsString()
+  departamentoVotacion?: string;
+
+  @IsOptional()
+  @IsString()
   municipioVotacion?: string;
+
+  @IsOptional()
+  @IsString()
+  direccionVotacion?: string;
 
   @IsOptional()
   @IsString()
@@ -42,28 +50,26 @@ export class BulkImportPlanilladoDto {
   @IsString()
   mesa?: string;
 
-  // ✅ AGREGADO - Cédula del líder pendiente
+  // ✅ CAMPO CRÍTICO - Cédula del líder
   @IsOptional()
   @IsString()
   liderCedula?: string;
 
-  // ✅ AGREGADO - Fecha de nacimiento
   @IsOptional()
-  @IsDateString()
+  @IsString()
+  grupoNombre?: string;
+
+  @IsOptional()
+  @IsString()
   fechaNacimiento?: string;
 
-  // ✅ AGREGADO - Género
   @IsOptional()
   @IsEnum(['M', 'F', 'Otro'])
   genero?: 'M' | 'F' | 'Otro';
 
-  // ✅ AGREGADO - Notas
   @IsOptional()
   @IsString()
   notas?: string;
-  departamentoVotacion: string;
-  direccionVotacion: string;
-  grupoNombre: string;
 }
 
 // ✅ DTO CORREGIDO para importación masiva de líderes
