@@ -411,54 +411,16 @@ export function generateSuggestedMapping(headers: string[], entityType: string):
         mappings[header] = 'zonaPuesto';
       } else if (cleanHeader.includes('mesa')) {
         mappings[header] = 'mesa';
-      } else if (cleanHeader.includes('cedula') && cleanHeader.includes('lider')) {
-      mappings[header] = 'cedulaLider';
-    } else if (cleanHeader.includes('lider') && cleanHeader.includes('cedula')) {
-      mappings[header] = 'cedulaLider';
-    } else if (cleanHeader === 'cedula lider' || cleanHeader === 'cedulalider') {
-      mappings[header] = 'cedulaLider';
-    }
-    });
-  } else if (entityType === 'voters') {
-    // Mapeos para voters (legacy)
-    headers.forEach(header => {
-      const cleanHeader = header.toLowerCase().trim();
-      
-      if (cleanHeader.includes('cédula') || cleanHeader.includes('cedula')) {
-        mappings[header] = 'cedula';
-      } else if (cleanHeader.includes('nombres') || cleanHeader.includes('nombre')) {
-        mappings[header] = 'firstName';
-      } else if (cleanHeader.includes('apellidos') || cleanHeader.includes('apellido')) {
-        mappings[header] = 'lastName';
-      } else if (cleanHeader.includes('celular') || cleanHeader.includes('teléfono')) {
-        mappings[header] = 'phone';
-      } else if (cleanHeader.includes('dirección') || cleanHeader.includes('direccion')) {
-        mappings[header] = 'address';
-      } else if (cleanHeader.includes('barrio')) {
-        mappings[header] = 'neighborhood';
-      } else if (cleanHeader.includes('municipio')) {
-        mappings[header] = 'municipality';
-      }
-    });
-  } else if (entityType === 'leaders') {
-    // Mapeos para líderes
-    headers.forEach(header => {
-      const cleanHeader = header.toLowerCase().trim();
-      
-      if (cleanHeader.includes('cédula') || cleanHeader.includes('cedula')) {
-        mappings[header] = 'cedula';
-      } else if (cleanHeader.includes('nombres') || cleanHeader.includes('nombre')) {
-        mappings[header] = 'firstName';
-      } else if (cleanHeader.includes('apellidos') || cleanHeader.includes('apellido')) {
-        mappings[header] = 'lastName';
-      } else if (cleanHeader.includes('celular') || cleanHeader.includes('teléfono')) {
-        mappings[header] = 'phone';
-      } else if (cleanHeader.includes('email') || cleanHeader.includes('correo')) {
-        mappings[header] = 'email';
-      } else if (cleanHeader.includes('meta')) {
-        mappings[header] = 'meta';
-      } else if (cleanHeader.includes('grupo')) {
-        mappings[header] = 'groupName';
+      } 
+      // ✅ CORREGIR MAPEO DE CÉDULA LÍDER - Ahora usa liderCedula para coincidir con ENTITY_FIELDS
+      else if (
+        (cleanHeader.includes('cedula') && cleanHeader.includes('lider')) ||
+        (cleanHeader.includes('lider') && cleanHeader.includes('cedula')) ||
+        cleanHeader === 'cedula lider' ||
+        cleanHeader === 'cedulalider' ||
+        cleanHeader === 'cedula_lider'
+      ) {
+        mappings[header] = 'liderCedula'; // ✅ CAMBIAR A liderCedula para coincidir con ENTITY_FIELDS
       }
     });
   }

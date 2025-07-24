@@ -1,4 +1,4 @@
-// frontend/src/App.tsx - RUTAS CORREGIDAS PARA COINCIDIR CON SIDEBAR
+// frontend/src/App.tsx - CORREGIDO: Añadidas rutas principales faltantes
 
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
@@ -9,8 +9,8 @@ import { store } from './store';
 import { Layout } from './components/layout/Layout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
-// Páginas
-import {Dashboard} from './pages/Dashboard';
+// Páginas existentes
+import { Dashboard } from './pages/Dashboard';
 import { AuthPage } from './pages/AuthPage';
 import { NotificationContainer } from './components/common/NotificationContainer';
 import { PlanilladosPage } from './pages/campaign/PlanilladosPage';
@@ -18,6 +18,9 @@ import ImportPage from './pages/operations/ImportPage';
 import { LeadersPage } from './pages/campaign/LeadersPage';
 import { GroupsPage } from './pages/campaign/GroupsPage';
 import { CandidatesPage } from './pages/campaign/CandidatesPage';
+
+// ✅ SOLO IMPORTAR CampaignPage - las otras no son necesarias por ahora
+import { CampaignPage } from './pages/campaign/CampaignPage';
 
 // Página de Coming Soon para rutas no implementadas
 const ComingSoon: React.FC = () => (
@@ -33,7 +36,7 @@ const ComingSoon: React.FC = () => (
 );
 
 // =====================================
-// ✅ COMPONENTE DE RUTAS
+// ✅ COMPONENTE DE RUTAS CORREGIDO
 // =====================================
 
 const AppRoutes: React.FC = () => {
@@ -62,68 +65,45 @@ const AppRoutes: React.FC = () => {
             <Route path="dashboard" element={<Dashboard />} />
             
             {/* ===== GESTIÓN DE CAMPAÑA ===== */}
-            <Route path="campaign">
-              <Route path="candidates" element={<CandidatesPage />} />
-              <Route path="groups" element={<GroupsPage />} />
-              <Route path="leaders" element={<LeadersPage />} />
-              <Route path="planillados" element={<PlanilladosPage />} />
-            </Route>
+            {/* ✅ Ruta principal de campaña - SOLO ESTA ES NECESARIA */}
+            <Route path="campaign" element={<CampaignPage />} />
+            <Route path="campaign/candidates" element={<CandidatesPage />} />
+            <Route path="campaign/groups" element={<GroupsPage />} />
+            <Route path="campaign/leaders" element={<LeadersPage />} />
+            <Route path="campaign/planillados" element={<PlanilladosPage />} />
             
             {/* ===== CENTRO DE OPERACIONES ===== */}
-            <Route path="operations">
-              <Route path="import" element={<ImportPage />} />
-              <Route path="leaders" element={<ComingSoon />} />
-              <Route path="voters" element={<ComingSoon />} />
-            </Route>
+            <Route path="operations" element={<ComingSoon />} />
+            <Route path="operations/import" element={<ImportPage />} />
+            <Route path="operations/leaders" element={<ComingSoon />} />
+            <Route path="operations/voters" element={<ComingSoon />} />
             
             {/* ===== VALIDACIÓN DE DATOS ===== */}
-            <Route path="validation">
-              <Route path="orphan-voters" element={<ComingSoon />} />
-              <Route path="duplicates" element={<ComingSoon />} />
-              <Route path="geo-errors" element={<ComingSoon />} />
-            </Route>
-            
-            {/* ===== INTELIGENCIA ELECTORAL ===== */}
-            <Route path="analytics">
-              <Route path="maps" element={<ComingSoon />} />
-              <Route path="stats" element={<ComingSoon />} />
-              <Route path="reports" element={<ComingSoon />} />
-            </Route>
+            <Route path="validation" element={<ComingSoon />} />
+            <Route path="validation/orphan-voters" element={<ComingSoon />} />
+            <Route path="validation/duplicates" element={<ComingSoon />} />
+            <Route path="validation/geo-errors" element={<ComingSoon />} />
             
             {/* ===== OTRAS RUTAS ===== */}
+            <Route path="analytics/*" element={<ComingSoon />} />
             <Route path="command" element={<ComingSoon />} />
             <Route path="reference" element={<ComingSoon />} />
             
-            {/* Rutas adicionales */}
-            <Route path="*" element={
-              <div className="flex items-center justify-center h-96">
-                <div className="text-center">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Página no encontrada</h2>
-                  <p className="text-gray-600">La página que buscas no existe.</p>
-                </div>
-              </div>
-            } />
+            {/* Rutas de configuración y otras */}
+            <Route path="settings" element={<ComingSoon />} />
+            <Route path="help" element={<ComingSoon />} />
           </Route>
         </Routes>
-
-        {/* ===== COMPONENTES GLOBALES ===== */}
         
-        {/* Contenedor de notificaciones */}
+        {/* Container de notificaciones */}
         <NotificationContainer />
-        
-        {/* Información de desarrollo (solo en dev) */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="fixed bottom-4 left-4 z-40 text-xs text-gray-500 bg-white bg-opacity-90 px-2 py-1 rounded">
-            Modo desarrollo
-          </div>
-        )}
       </div>
     </Router>
   );
 };
 
 // =====================================
-// ✅ COMPONENTE PRINCIPAL CON UN SOLO PROVIDER
+// ✅ COMPONENTE PRINCIPAL
 // =====================================
 
 const App: React.FC = () => {

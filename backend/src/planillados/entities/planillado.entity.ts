@@ -88,6 +88,9 @@ export class Planillado {
   @JoinColumn({ name: 'liderId' })
   lider?: Leader;
 
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  cedulaLiderPendiente?: string;
+
   @Column({ nullable: true })
   grupoId?: number;
 
@@ -95,9 +98,6 @@ export class Planillado {
   @JoinColumn({ name: 'grupoId' })
   grupo?: Group;
 
-  // ✅ NUEVO CAMPO - Cédula del líder pendiente de relacionar
-  @Column({ type: 'varchar', length: 20, nullable: true })
-  cedulaLiderPendiente?: string;
 
   // =====================================
   // DATOS ADICIONALES

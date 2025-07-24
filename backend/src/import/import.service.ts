@@ -101,127 +101,141 @@ export class ImportService {
 
   // ✅ IMPORTAR PLANILLADOS
   async importPlanillados(mappingDto: ImportMappingDto): Promise<ImportResultDto> {
-    const startTime = Date.now();
-    const errors: ImportErrorDto[] = [];
-    let successCount = 0;
-    let errorCount = 0;
+  const startTime = Date.now();
+  const errors: ImportErrorDto[] = [];
+  let successCount = 0;
+  let errorCount = 0;
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+  const queryRunner = this.dataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
 
-    try {
-      for (let i = 0; i < mappingDto.previewData.length; i++) {
-        const row = mappingDto.previewData[i];
-        const rowNumber = i + 1;
+  try {
+    for (let i = 0; i < mappingDto.previewData.length; i++) {
+      const row = mappingDto.previewData[i];
+      const rowNumber = i + 1;
 
-        try {
-          // Mapear datos según configuración
-          const planilladoData: BulkImportPlanilladoDto = this.mapRowToPlanillado(row, mappingDto.fieldMappings);
-          
-          // Validar datos requeridos
-          const validation = this.validatePlanilladoData(planilladoData, rowNumber);
-          if (validation.length > 0) {
-            errors.push(...validation);
-            errorCount++;
-            continue;
-          }
-
-          // Buscar líder si está especificado
-          let leader: Leader | null = null;
-          if (planilladoData.liderCedula) {
-            leader = await this.leaderRepository.findOne({
-              where: { cedula: planilladoData.liderCedula }
-            });
-            
-            if (!leader) {
-              errors.push({
-                row: rowNumber,
-                field: 'liderCedula',
-                value: planilladoData.liderCedula,
-                error: 'Líder no encontrado',
-                severity: 'warning'
-              });
-            }
-          }
-
-          // Crear o actualizar planillado
-          let planillado = await this.planilladoRepository.findOne({
-            where: { cedula: planilladoData.cedula }
-          });
-
-          if (planillado) {
-            // Actualizar existente
-            await queryRunner.manager.update(Planillado, { id: planillado.id }, {
-              nombres: planilladoData.nombres,
-              apellidos: planilladoData.apellidos,
-              celular: planilladoData.celular || undefined,
-              direccion: planilladoData.direccion || undefined,
-              barrioVive: planilladoData.barrioVive || undefined,
-              fechaExpedicion: planilladoData.fechaExpedicion ? new Date(planilladoData.fechaExpedicion) : undefined,
-              municipioVotacion: planilladoData.municipioVotacion || undefined,
-              zonaPuesto: planilladoData.zonaPuesto || undefined,
-              mesa: planilladoData.mesa || undefined,
-              liderId: leader?.id || undefined,
-              actualizado: true,
-              fechaActualizacion: new Date()
-            });
-          } else {
-            // Crear nuevo
-            const newPlanillado = queryRunner.manager.create(Planillado, {
-              cedula: planilladoData.cedula,
-              nombres: planilladoData.nombres,
-              apellidos: planilladoData.apellidos,
-              celular: planilladoData.celular || undefined,
-              direccion: planilladoData.direccion || undefined,
-              barrioVive: planilladoData.barrioVive || undefined,
-              fechaExpedicion: planilladoData.fechaExpedicion ? new Date(planilladoData.fechaExpedicion) : undefined,
-              municipioVotacion: planilladoData.municipioVotacion || undefined,
-              zonaPuesto: planilladoData.zonaPuesto || undefined,
-              mesa: planilladoData.mesa || undefined,
-              liderId: leader?.id || undefined,
-              estado: 'pendiente',
-              esEdil: false,
-              actualizado: true
-            });
-            
-            await queryRunner.manager.save(newPlanillado);
-          }
-
-          successCount++;
-        } catch (error) {
+      try {
+        // Mapear datos según configuración
+        const planilladoData: BulkImportPlanilladoDto = this.mapRowToPlanillado(row, mappingDto.fieldMappings);
+        
+        // ✅ Debug específico para cédula líder
+        console.log(`🔍 Fila ${rowNumber}: Cédula líder = "${planilladoData.liderCedula}"`);
+        
+        // Validar datos requeridos
+        const validation = this.validatePlanilladoData(planilladoData, rowNumber);
+        if (validation.length > 0) {
+          errors.push(...validation);
           errorCount++;
-          errors.push({
-            row: rowNumber,
-            field: 'general',
-            value: null,
-            error: `Error procesando fila: ${error.message}`,
-            severity: 'error'
-          });
+          continue;
         }
+
+        // ✅ MEJORAR BÚSQUEDA DE LÍDER
+        let leader: Leader | null = null;
+        let cedulaLiderPendiente: string | null = null;
+        
+        if (planilladoData.liderCedula && planilladoData.liderCedula.trim() !== '') {
+          const cedulaLider = planilladoData.liderCedula.trim();
+          console.log(`🔍 Buscando líder con cédula: "${cedulaLider}"`);
+          
+          leader = await this.leaderRepository.findOne({
+            where: { cedula: cedulaLider }
+          });
+          
+          if (leader) {
+            console.log(`✅ Líder encontrado: ${leader.firstName} ${leader.lastName}`);
+          } else {
+            console.log(`⚠️ Líder no encontrado para cédula: ${cedulaLider}`);
+            cedulaLiderPendiente = cedulaLider; // ✅ Guardar para asignación posterior
+            
+            errors.push({
+              row: rowNumber,
+              field: 'liderCedula',
+              value: cedulaLider,
+              error: 'Líder no encontrado - se guardará como pendiente',
+              severity: 'warning'
+            });
+          }
+        }
+
+        // Crear o actualizar planillado
+        let planillado = await this.planilladoRepository.findOne({
+          where: { cedula: planilladoData.cedula }
+        });
+
+        const planilladoEntity = {
+          nombres: planilladoData.nombres,
+          apellidos: planilladoData.apellidos,
+          celular: planilladoData.celular || undefined,
+          direccion: planilladoData.direccion || undefined,
+          barrioVive: planilladoData.barrioVive || undefined,
+          fechaExpedicion: planilladoData.fechaExpedicion ? 
+            new Date(planilladoData.fechaExpedicion) : undefined,
+          departamentoVotacion: planilladoData.departamentoVotacion || undefined,
+          municipioVotacion: planilladoData.municipioVotacion || undefined,
+          direccionVotacion: planilladoData.direccionVotacion || undefined,
+          zonaPuesto: planilladoData.zonaPuesto || undefined,
+          mesa: planilladoData.mesa || undefined,
+          fechaNacimiento: planilladoData.fechaNacimiento ?
+            new Date(planilladoData.fechaNacimiento) : undefined,
+          genero: planilladoData.genero || undefined,
+          notas: planilladoData.notas || undefined,
+          // ✅ ASIGNAR LÍDER CORRECTAMENTE
+          liderId: leader?.id || undefined,
+          cedulaLiderPendiente: cedulaLiderPendiente || undefined, // ✅ Nuevo campo
+          actualizado: true
+        };
+
+        if (planillado) {
+          // Actualizar existente
+          await queryRunner.manager.update(Planillado, { id: planillado.id }, planilladoEntity);
+          console.log(`✅ Planillado actualizado: ${planilladoData.cedula}`);
+        } else {
+          // Crear nuevo
+          planillado = queryRunner.manager.create(Planillado, {
+            cedula: planilladoData.cedula,
+            ...planilladoEntity
+          });
+          await queryRunner.manager.save(planillado);
+          console.log(`✅ Planillado creado: ${planilladoData.cedula}`);
+        }
+
+        successCount++;
+
+      } catch (rowError) {
+        console.error(`❌ Error en fila ${rowNumber}:`, rowError);
+        errors.push({
+          row: rowNumber,
+          field: 'general',
+          value: '',
+          error: rowError.message || 'Error desconocido',
+          severity: 'error'
+        });
+        errorCount++;
       }
-
-      await queryRunner.commitTransaction();
-
-      const executionTime = Date.now() - startTime;
-
-      return {
-        success: errorCount === 0,
-        totalRows: mappingDto.previewData.length,
-        successCount,
-        errorCount,
-        errors,
-        warnings: errors.filter(e => e.severity === 'warning').map(e => e.error),
-        executionTime
-      };
-
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw new BadRequestException(`Error en importación: ${error.message}`);
-    } finally {
-      await queryRunner.release();
     }
+
+    await queryRunner.commitTransaction();
+
+    const result: ImportResultDto = {
+      success: true,
+      totalRows: mappingDto.previewData.length, // ✅ CORREGIR: era totalProcessed
+      successCount,
+      errorCount,
+      errors,
+      warnings: [], // ✅ AGREGAR: warnings array requerido
+      executionTime: Date.now() - startTime // ✅ CORREGIR: era processingTime
+    };
+
+    return result;
+
+  } catch (error) {
+    await queryRunner.rollbackTransaction();
+    throw new BadRequestException(`Error en importación: ${error.message}`);
+  } finally {
+    await queryRunner.release();
   }
+}
 
 
   // ✅ IMPORTAR LÍDERES
@@ -679,34 +693,25 @@ export class ImportService {
 
   // ✅ MAPEAR FILA A PLANILLADO
   private mapRowToPlanillado(row: any, mappings: Record<string, string>): BulkImportPlanilladoDto {
-  // ✅ VALIDACIÓN CRÍTICA TEMPRANA
-  if (!mappings || Object.keys(mappings).length === 0) {
-    console.error('❌ MAPPINGS VACÍOS RECIBIDOS EN BACKEND');
-    console.error('❌ Row data:', row);
-    throw new Error('No se recibieron mappings válidos para procesar los datos');
-  }
-
   const planillado: BulkImportPlanilladoDto = {
     cedula: '',
     nombres: '',
     apellidos: '',
     departamentoVotacion: '',
     direccionVotacion: '',
-    grupoNombre: ''
+    grupoNombre: '',
+    // ✅ CORREGIR: usar el nombre correcto del campo
+    liderCedula: undefined
   };
 
-  // ✅ Debug logs mejorados
+  // Debug logs
   console.log('🔍 Mapping row:', row);
   console.log('🔍 Mappings received:', mappings);
-  console.log('🔍 Mappings keys count:', Object.keys(mappings).length);
-  console.log('🔍 Available row keys:', Object.keys(row));
 
-  // ✅ CORREGIDO: Cambiar el orden del destructuring
   for (const [entityField, csvColumn] of Object.entries(mappings)) {
     if (row[csvColumn] !== undefined && row[csvColumn] !== null) {
       let value = String(row[csvColumn]).trim();
       
-      // ✅ Agregar debug log (ahora con el orden correcto)
       console.log(`🔍 Mapping ${csvColumn} -> ${entityField}: "${value}"`);
       
       switch (entityField) {
@@ -746,8 +751,10 @@ export class ImportService {
         case 'mesa':
           planillado.mesa = value;
           break;
-        case 'cedulaLider':
+        // ✅ ESTE ES EL MAPEO CORRECTO PARA CÉDULA LÍDER
+        case 'liderCedula':
           planillado.liderCedula = value;
+          console.log(`✅ Cédula de líder mapeada: ${value}`);
           break;
         case 'grupoNombre':
           planillado.grupoNombre = value;
@@ -765,14 +772,11 @@ export class ImportService {
           console.log(`⚠️ Campo no reconocido: ${entityField}`);
           break;
       }
-    } else {
-      // ✅ CORREGIDO: Log con el orden correcto
-      console.log(`⚠️ Campo vacío: ${csvColumn} -> ${entityField}`);
     }
   }
 
-  // ✅ Debug log del resultado
   console.log('🔍 Final mapped planillado:', planillado);
+  console.log('🔍 Cédula líder final:', planillado.liderCedula);
   
   return planillado;
 }

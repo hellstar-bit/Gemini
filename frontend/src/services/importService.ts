@@ -117,7 +117,7 @@ export const ENTITY_FIELDS: EntityFieldsConfig = {
     { key: 'direccionVotacion', label: 'Dirección de votación', required: false, example: 'Calle 50 #30-20' },
     { key: 'zonaPuesto', label: 'Zona y puesto', required: false, example: 'Zona 1 - Puesto 5' },
     { key: 'mesa', label: 'Mesa', required: false, example: '001' },
-    { key: 'liderCedula', label: 'Cédula del líder', required: false, example: '87654321' },
+    { key: 'cedulaLider', label: 'Cédula del líder', required: false, example: '87654321' },
     { key: 'grupoNombre', label: 'Nombre del grupo', required: false, example: 'Grupo Norte' },
     { key: 'fechaNacimiento', label: 'Fecha de nacimiento', required: false, example: '20/03/1985' },
     { key: 'genero', label: 'Género', required: false, example: 'M' },

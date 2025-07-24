@@ -1,10 +1,11 @@
-// frontend/src/pages/campaign/PlanilladosPage.tsx - INTEGRADO CON API REAL
+// frontend/src/pages/campaign/PlanilladosPage.tsx - CON MEJOR USO DEL ESPACIO
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   UserGroupIcon,
   ChartBarIcon,
   PlusIcon,
-  ExclamationCircleIcon
+  ExclamationCircleIcon,
+  MapIcon,
 } from '@heroicons/react/24/outline';
 
 // Componentes del módulo
@@ -18,6 +19,60 @@ import { BulkActionsBar } from '../../components/planillados/BulkActionsBar';
 
 // Servicio API
 import planilladosService from '../../services/planilladosService';
+
+// ✅ INTERFACES
+interface PlanilladoFiltersDto {
+  buscar?: string;
+  estado?: 'verificado' | 'pendiente';
+  esEdil?: boolean;
+  barrioVive?: string;
+  municipioVotacion?: string;
+  liderId?: number;
+  grupoId?: number;
+  cedulaLider?: string;
+  cedulaLiderPendiente?: string;
+  sinLider?: boolean;
+  conLiderPendiente?: boolean;
+  soloAsignados?: boolean;
+}
+
+interface PlanilladosStatsDto {
+  total: number;
+  verificados: number;
+  pendientes: number;
+  ediles: number;
+  porBarrio: Record<string, number>;
+  porGenero: Record<string, number>;
+  porEdad: Record<string, number>;
+  porLider: Record<string, number>;
+  porGrupo: Record<string, number>;
+  nuevosHoy: number;
+  nuevosEstaSemana: number;
+  actualizadosHoy: number;
+}
+
+interface Planillado {
+  id: number;
+  cedula: string;
+  nombres: string;
+  apellidos: string;
+  celular?: string;
+  direccion?: string;
+  barrioVive?: string;
+  municipioVotacion?: string;
+  zonaPuesto?: string;
+  mesa?: string;
+  estado: 'verificado' | 'pendiente';
+  esEdil: boolean;
+  fechaCreacion?: string;
+  cedulaLiderPendiente?: string;
+  lider?: {
+    id: number;
+    cedula: string;
+    firstName: string;
+    lastName: string;
+  };
+}
 
 export const PlanilladosPage: React.FC = () => {
   // ✅ Estados principales
@@ -45,18 +100,24 @@ export const PlanilladosPage: React.FC = () => {
 
       // Fallback a datos mock para desarrollo
       const mockStats: PlanilladosStatsDto = {
-        total: 0,
+        total: 100,
         verificados: 0,
-        pendientes: 0,
+        pendientes: 100,
         ediles: 0,
-        porBarrio: {},
+        porBarrio: {
+          'BOSTON': 13,
+          'LAS DELICIAS': 12,
+          'RIOMAR': 11,
+          'REBOLO': 11,
+          'SAN FELIPE': 11,
+        },
         porGenero: {},
         porEdad: {},
         porLider: {},
         porGrupo: {},
         nuevosHoy: 0,
-        nuevosEstaSemana: 0,
-        actualizadosHoy: 0
+        nuevosEstaSemana: 100,
+        actualizadosHoy: 0,
       };
       setStats(mockStats);
     } finally {
@@ -64,137 +125,158 @@ export const PlanilladosPage: React.FC = () => {
     }
   }, [filters]);
 
-  // ✅ Efectos
   useEffect(() => {
     loadStats();
   }, [loadStats]);
 
-  // ✅ Handlers
-  const handleCreateNew = () => {
-    setEditingPlanillado(null);
-    setShowModal(true);
-  };
-
-  const handleEdit = (planillado: Planillado) => {
-    setEditingPlanillado(planillado);
-    setShowModal(true);
-  };
-
-  const handleSave = async (data: Partial<Planillado>) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      if (editingPlanillado) {
-        // Actualizar planillado existente
-        await planilladosService.update(editingPlanillado.id, data);
-      } else {
-        // Crear nuevo planillado
-        await planilladosService.create(data);
-      }
-
-      // Recargar estadísticas y datos
-      await loadStats();
-      setShowModal(false);
-      setSelectedIds([]); // Limpiar selección
-
-      // Mostrar mensaje de éxito (opcional)
-      console.log(editingPlanillado ? 'Planillado actualizado' : 'Planillado creado');
-    } catch (error: any) {
-      console.error('Error saving planillado:', error);
-      setError(error.message || 'Error al guardar planillado');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  
-
-  const handleBulkAction = async (action: string, ids: number[]) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const result = await planilladosService.bulkAction(action, ids);
-
-      console.log(`Acción masiva ${action}: ${result.affected} planillados afectados`);
-
-      // Recargar datos después de la acción
-      await loadStats();
-      setSelectedIds([]); // Limpiar selección
-
-      // Manejar exportación especial
-      if (action === 'export') {
-        await planilladosService.exportToExcel(filters);
-      }
-    } catch (error: any) {
-      console.error('Error in bulk action:', error);
-      setError(error.message || `Error en acción masiva: ${action}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // ✅ Manejar filtros
   const handleFiltersChange = (newFilters: PlanilladoFiltersDto) => {
     setFilters(newFilters);
     setSelectedIds([]); // Limpiar selección al cambiar filtros
   };
 
+  // ✅ Manejar edición
+  const handleEdit = (planillado: Planillado) => {
+    setEditingPlanillado(planillado);
+    setShowModal(true);
+  };
+
+  const handleCreate = () => {
+    setEditingPlanillado(null);
+    setShowModal(true);
+  };
+
+  const handleModalClose = () => {
+    setShowModal(false);
+    setEditingPlanillado(null);
+  };
+
+  const handleModalSave = async (data: any) => {
+    try {
+      setIsLoading(true);
+      
+      if (editingPlanillado) {
+        await planilladosService.update(editingPlanillado.id, data);
+      } else {
+        await planilladosService.create(data);
+      }
+      
+      handleModalClose();
+      loadStats(); // Recargar estadísticas
+    } catch (error) {
+      console.error('Error saving planillado:', error);
+      setError('Error al guardar planillado');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ✅ Manejar acciones masivas
+  const handleBulkAction = async (action: string) => {
+    if (selectedIds.length === 0) return;
+
+    try {
+      setIsLoading(true);
+      
+      switch (action) {
+        case 'verify':
+          // Usar update individual para cada planillado seleccionado
+          for (const id of selectedIds) {
+            await planilladosService.update(id, { estado: 'verificado' });
+          }
+          break;
+        case 'delete':
+          // Eliminar individualmente cada planillado seleccionado
+          for (const id of selectedIds) {
+            await planilladosService.delete(id);
+          }
+          break;
+        case 'export':
+          // Obtener datos y exportar
+          const data = await planilladosService.getAll({ 
+            // Filtrar por IDs si es posible, o usar filtros actuales
+            ...filters
+          }, 1, 1000);
+          
+          // Crear y descargar archivo Excel
+          const filteredData = data.data.filter(item => selectedIds.includes(item.id));
+          const blob = new Blob([JSON.stringify(filteredData, null, 2)], {
+            type: 'application/json'
+          });
+          planilladosService.downloadExcel(blob, 'planillados_seleccionados.json');
+          break;
+      }
+      
+      setSelectedIds([]);
+      loadStats();
+    } catch (error) {
+      console.error('Error in bulk action:', error);
+      setError('Error en acción masiva');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* ✅ Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* ✅ HEADER COMPACTO - Sin limitación de ancho */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="px-6 lg:px-8"> {/* Sin max-width limitante */}
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <UserGroupIcon className="w-8 h-8 text-primary-600 mr-3" />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Gestión de Planillados</h1>
-                {error && (
-                  <div className="flex items-center text-sm text-red-600 mt-1">
-                    <ExclamationCircleIcon className="w-4 h-4 mr-1" />
-                    {error}
-                  </div>
-                )}
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl">
+                  <UserGroupIcon className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">Gestión de Planillados</h1>
+                  <p className="text-sm text-gray-600">Base de datos de votantes y análisis electoral</p>
+                </div>
               </div>
             </div>
+
+            {/* Navegación de vistas y acciones */}
             <div className="flex items-center space-x-4">
-              {/* Vistas */}
+              {/* Cambiar vista */}
               <div className="flex bg-gray-100 rounded-lg p-1">
                 <button
                   onClick={() => setView('list')}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${view === 'list'
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    view === 'list'
                       ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                  }`}
                 >
                   Lista
                 </button>
                 <button
                   onClick={() => setView('charts')}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${view === 'charts'
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    view === 'charts'
                       ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                  }`}
                 >
                   Gráficos
                 </button>
                 <button
                   onClick={() => setView('map')}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${view === 'map'
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    view === 'map'
                       ? 'bg-white text-gray-900 shadow-sm'
                       : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                  }`}
                 >
                   Mapa
                 </button>
               </div>
 
-              {/* Acciones */}
+              {/* Botón principal */}
               <button
-                onClick={handleCreateNew}
+                onClick={handleCreate}
                 disabled={isLoading}
-                className={`inline-flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${isLoading
+                className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium transition-colors ${
+                  isLoading
                     ? 'bg-gray-400 text-white cursor-not-allowed'
                     : 'bg-primary-600 text-white hover:bg-primary-700'
                   }`}
@@ -207,10 +289,10 @@ export const PlanilladosPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ✅ Estadísticas rápidas */}
+      {/* ✅ ESTADÍSTICAS RÁPIDAS - Full width */}
       {isStatsLoading ? (
         <div className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="px-6 lg:px-8 py-6"> {/* Sin max-width limitante */}
             <div className="flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
               <span className="ml-3 text-gray-600">Cargando estadísticas...</span>
@@ -218,11 +300,26 @@ export const PlanilladosPage: React.FC = () => {
           </div>
         </div>
       ) : stats && (
-        <PlanilladosStats stats={stats} />
+        <div className="bg-white border-b border-gray-200">
+          <div className="px-6 lg:px-8"> {/* Sin max-width limitante */}
+            <PlanilladosStats stats={stats} />
+          </div>
+        </div>
       )}
 
-      {/* ✅ Contenido principal */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* ✅ CONTENIDO PRINCIPAL - Full width */}
+      <div className="px-6 lg:px-8 py-6"> {/* Sin max-width limitante */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
+            <div className="flex">
+              <ExclamationCircleIcon className="h-5 w-5 text-red-400" />
+              <div className="ml-3">
+                <p className="text-sm text-red-800">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {view === 'list' && (
           <div className="space-y-6">
             {/* Filtros */}
@@ -240,13 +337,13 @@ export const PlanilladosPage: React.FC = () => {
               />
             )}
 
-            {/* Lista */}
+            {/* ✅ LISTA CON FULL WIDTH - La tabla aprovechará todo el espacio */}
             <PlanilladosList
               filters={filters}
               selectedIds={selectedIds}
               onSelectionChange={setSelectedIds}
               onEdit={handleEdit}
-              onDataChange={loadStats} // Recargar stats cuando cambien los datos
+              onDataChange={loadStats}
             />
           </div>
         )}
@@ -254,103 +351,45 @@ export const PlanilladosPage: React.FC = () => {
         {view === 'charts' && (
           <div>
             {stats ? (
-              <PlanilladosCharts stats={stats} />
+              <PlanilladosCharts 
+                stats={stats}
+              />
             ) : (
-              <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-                <ChartBarIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Cargando gráficos...
-                </h3>
-                <p className="text-gray-600">
-                  Obteniendo datos para generar las visualizaciones
-                </p>
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <ChartBarIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">No hay datos para mostrar gráficos</p>
+                </div>
               </div>
             )}
           </div>
         )}
 
         {view === 'map' && (
-          <PlanilladosMap filters={filters} />
+          <div>
+            {stats ? (
+              <PlanilladosMap />
+            ) : (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <MapIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">No hay datos para mostrar en el mapa</p>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
-      {/* ✅ Modal crear/editar */}
+      {/* ✅ MODAL */}
       {showModal && (
         <PlanilladoModal
           planillado={editingPlanillado}
-          onClose={() => setShowModal(false)}
-          onSave={handleSave}
+          onClose={handleModalClose}
+          onSave={handleModalSave}
           isLoading={isLoading}
         />
-      )}
-
-      {/* ✅ Loading overlay global */}
-      {isLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
-            <span className="text-gray-900">Procesando...</span>
-          </div>
-        </div>
       )}
     </div>
   );
 };
-
-// ✅ Tipos para los componentes (mantener compatibilidad)
-export interface PlanilladoFiltersDto {
-  buscar?: string;
-  estado?: 'verificado' | 'pendiente';
-  barrioVive?: string;
-  liderId?: number;
-  grupoId?: number;
-  esEdil?: boolean;
-  genero?: 'M' | 'F' | 'Otro';
-  rangoEdad?: string;
-  municipioVotacion?: string;
-  fechaDesde?: Date;
-  fechaHasta?: Date;
-  actualizado?: boolean;
-  cedulaLider?: string;  
-}
-
-export interface PlanilladosStatsDto {
-  total: number;
-  verificados: number;
-  pendientes: number;
-  ediles: number;
-  porBarrio: Record<string, number>;
-  porGenero: Record<string, number>;
-  porEdad: Record<string, number>;
-  porLider: Record<string, number>;
-  porGrupo: Record<string, number>;
-  nuevosHoy: number;
-  nuevosEstaSemana: number;
-  actualizadosHoy: number;
-}
-
-export interface Planillado {
-  id: number;
-  cedula: string;
-  nombres: string;
-  apellidos: string;
-  celular?: string;
-  direccion?: string;
-  barrioVive?: string;
-  fechaExpedicion?: Date;
-  departamentoVotacion?: string;
-  municipioVotacion?: string;
-  direccionVotacion?: string;
-  zonaPuesto?: string;
-  mesa?: string;
-  estado: 'verificado' | 'pendiente';
-  esEdil: boolean;
-  actualizado: boolean;
-  liderId?: number;
-  grupoId?: number;
-  fechaNacimiento?: Date;
-  genero?: 'M' | 'F' | 'Otro';
-  notas?: string;
-  fechaCreacion: Date;
-  fechaActualizacion: Date;
-}
