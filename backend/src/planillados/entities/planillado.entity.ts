@@ -1,4 +1,4 @@
-// backend/src/planillados/entities/planillado.entity.ts - ACTUALIZADO
+// backend/src/planillados/entities/planillado.entity.ts - CORREGIDO
 
 import {
   Entity,
@@ -14,8 +14,11 @@ import { Leader } from '../../leaders/entities/leader.entity';
 import { Group } from '../../groups/entities/group.entity';
 
 @Entity('planillados')
-@Index(['cedula'], { unique: true })
-@Index(['cedulaLiderPendiente']) // ✅ NUEVO - Índice para búsquedas rápidas
+// ✅ ELIMINAR: @Index(['cedula'], { unique: true }) - Ya está definido en la columna
+@Index(['cedulaLiderPendiente']) // ✅ MANTENER - Índice para búsquedas rápidas
+@Index(['estado']) // ✅ NUEVO - Para filtros por estado
+@Index(['esEdil']) // ✅ NUEVO - Para filtros por ediles
+@Index(['municipioVotacion']) // ✅ NUEVO - Para filtros geográficos
 export class Planillado {
   @PrimaryGeneratedColumn()
   id: number;
@@ -23,7 +26,7 @@ export class Planillado {
   // =====================================
   // DATOS PERSONALES
   // =====================================
-  @Column({ type: 'varchar', length: 20, unique: true })
+  @Column({ type: 'varchar', length: 20, unique: true }) // ✅ MANTENER unique aquí
   cedula: string;
 
   @Column({ type: 'varchar', length: 100 })
@@ -98,7 +101,6 @@ export class Planillado {
   @JoinColumn({ name: 'grupoId' })
   grupo?: Group;
 
-
   // =====================================
   // DATOS ADICIONALES
   // =====================================
@@ -118,45 +120,40 @@ export class Planillado {
   // =====================================
   // TIMESTAMPS
   // =====================================
-  @CreateDateColumn({ name: 'fechaCreacion' })
+  @CreateDateColumn()
   fechaCreacion: Date;
 
-  @UpdateDateColumn({ name: 'fechaActualizacion' })
+  @UpdateDateColumn()
   fechaActualizacion: Date;
 
   // =====================================
-  // CAMPOS CALCULADOS (Virtual)
+  // CAMPOS CALCULADOS (NO PERSISTIDOS)
   // =====================================
   get nombreCompleto(): string {
     return `${this.nombres} ${this.apellidos}`;
   }
 
-  get edad(): number | null {
-    if (!this.fechaNacimiento) return null;
-    
-    const today = new Date();
-    const birthDate = new Date(this.fechaNacimiento);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
+  get edad(): number | undefined {
+    if (!this.fechaNacimiento) return undefined;
+    const hoy = new Date();
+    const nacimiento = new Date(this.fechaNacimiento);
+    let edad = hoy.getFullYear() - nacimiento.getFullYear();
+    const mes = hoy.getMonth() - nacimiento.getMonth();
+    if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
+      edad--;
     }
-    
-    return age;
+    return edad;
   }
 
   get rangoEdad(): string {
     const edad = this.edad;
-    if (!edad) return 'No especificado';
-    
-    if (edad >= 18 && edad <= 24) return '18-24';
-    if (edad >= 25 && edad <= 34) return '25-34';
-    if (edad >= 35 && edad <= 44) return '35-44';
-    if (edad >= 45 && edad <= 54) return '45-54';
-    if (edad >= 55 && edad <= 64) return '55-64';
-    if (edad >= 65) return '65+';
-    
-    return 'No válido';
+    if (!edad) return 'No definido';
+    if (edad < 18) return 'Menor de edad';
+    if (edad <= 25) return '18-25';
+    if (edad <= 35) return '26-35';
+    if (edad <= 45) return '36-45';
+    if (edad <= 55) return '46-55';
+    if (edad <= 65) return '56-65';
+    return 'Más de 65';
   }
 }

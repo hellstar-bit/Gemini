@@ -99,6 +99,10 @@ export class ImportService {
     }
   }
 
+  private sanitizeValue<T>(value: T | null | undefined): T | undefined {
+  return value === null ? undefined : value;
+}
+
   // ✅ IMPORTAR PLANILLADOS
   async importPlanillados(mappingDto: ImportMappingDto): Promise<ImportResultDto> {
     const startTime = Date.now();
@@ -162,53 +166,48 @@ export class ImportService {
 
           // ✅ BUSCAR PLANILLADO EXISTENTE
           let planillado = await this.planilladoRepository.findOne({
-            where: { cedula: planilladoData.cedula }
-          });
+  where: { cedula: planilladoData.cedula }
+});
 
-          // ✅ PREPARAR DATOS PARA GUARDAR
-          const planilladoEntity = {
-            nombres: planilladoData.nombres,
-            apellidos: planilladoData.apellidos,
-            celular: planilladoData.celular || undefined,
-            direccion: planilladoData.direccion || null,
-            barrioVive: planilladoData.barrioVive || null,
-            fechaExpedicion: planilladoData.fechaExpedicion ? 
-              new Date(planilladoData.fechaExpedicion) : null,
-            departamentoVotacion: planilladoData.departamentoVotacion || null,
-            municipioVotacion: planilladoData.municipioVotacion || null,
-            direccionVotacion: planilladoData.direccionVotacion || null,
-            zonaPuesto: planilladoData.zonaPuesto || null,
-            mesa: planilladoData.mesa || null,
-            fechaNacimiento: planilladoData.fechaNacimiento ?
-              new Date(planilladoData.fechaNacimiento) : null,
-            genero: planilladoData.genero || null,
-            notas: planilladoData.notas || null,
-            // ✅ ASIGNAR LÍDER
-            liderId: leader?.id || undefined,
-            cedulaLiderPendiente: cedulaLiderPendiente || undefined,
-            actualizado: true,
-            fechaActualizacion: new Date()
-          };
+// ✅ CORRECCIÓN: Usar sanitizeValue para convertir null a undefined
+const planilladoEntity = {
+  nombres: planilladoData.nombres,
+  apellidos: planilladoData.apellidos,
+  celular: this.sanitizeValue(planilladoData.celular),
+  direccion: this.sanitizeValue(planilladoData.direccion),
+  barrioVive: this.sanitizeValue(planilladoData.barrioVive),
+  fechaExpedicion: planilladoData.fechaExpedicion ? 
+    new Date(planilladoData.fechaExpedicion) : undefined,
+  departamentoVotacion: this.sanitizeValue(planilladoData.departamentoVotacion),
+  municipioVotacion: this.sanitizeValue(planilladoData.municipioVotacion),
+  direccionVotacion: this.sanitizeValue(planilladoData.direccionVotacion),
+  zonaPuesto: this.sanitizeValue(planilladoData.zonaPuesto),
+  mesa: this.sanitizeValue(planilladoData.mesa),
+  fechaNacimiento: planilladoData.fechaNacimiento ?
+    new Date(planilladoData.fechaNacimiento) : undefined,
+  genero: this.sanitizeValue(planilladoData.genero),
+  notas: this.sanitizeValue(planilladoData.notas),
+  // ✅ ASIGNAR LÍDER CORRECTAMENTE
+  liderId: leader?.id || undefined,
+  cedulaLiderPendiente: this.sanitizeValue(cedulaLiderPendiente),
+  actualizado: true,
+  fechaActualizacion: new Date()
+};
 
-          console.log(`💾 Datos a guardar:`, {
-            cedula: planilladoData.cedula,
-            liderId: planilladoEntity.liderId,
-            cedulaLiderPendiente: planilladoEntity.cedulaLiderPendiente
-          });
-
-          if (planillado) {
-            // ✅ ACTUALIZAR EXISTENTE
-            await queryRunner.manager.update(Planillado, { id: planillado.id }, planilladoEntity);
-            console.log(`✅ PLANILLADO ACTUALIZADO: ${planilladoData.cedula}`);
-          } else {
-            // ✅ CREAR NUEVO  
-            planillado = queryRunner.manager.create(Planillado, {
-              cedula: planilladoData.cedula,
-              ...planilladoEntity
-            });
-            await queryRunner.manager.save(planillado);
-            console.log(`✅ PLANILLADO CREADO: ${planilladoData.cedula}`);
-          }
+if (planillado) {
+  // Actualizar existente - ✅ CORRECCIÓN: Usar merge en lugar de update
+  Object.assign(planillado, planilladoEntity);
+  await queryRunner.manager.save(planillado);
+  console.log(`✅ Planillado actualizado: ${planilladoData.cedula}`);
+} else {
+  // Crear nuevo - ✅ CORRECCIÓN: Usar create correctamente
+  const newPlanillado = this.planilladoRepository.create({
+    cedula: planilladoData.cedula,
+    ...planilladoEntity
+  });
+  await queryRunner.manager.save(newPlanillado);
+  console.log(`✅ Planillado creado: ${planilladoData.cedula}`);
+}
 
           successCount++;
 
