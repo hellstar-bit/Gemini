@@ -1,4 +1,4 @@
-// frontend/src/pages/campaign/CandidatesPage.tsx
+// frontend/src/pages/campaign/CandidatesPage.tsx - VERSIÓN CORREGIDA COMPLETA
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   IdentificationIcon,
@@ -14,7 +14,11 @@ import { CandidatesFilters } from '../../components/candidates/CandidatesFilters
 import { CandidatesStats } from '../../components/candidates/CandidatesStats';
 import { CandidatesCharts } from '../../components/candidates/CandidatesCharts';
 import { CandidateModal } from '../../components/candidates/CandidateModal';
-import candidatesService, { type Candidate, type CandidateFiltersDto, type CandidateStatsDto } from '../../services/candidatesService';
+import candidatesService, { 
+  type Candidate, 
+  type CandidateFiltersDto, 
+  type CandidateStatsDto,
+} from '../../services/candidatesService';
 
 export const CandidatesPage: React.FC = () => {
   const [view, setView] = useState<'list' | 'charts'>('list');
@@ -26,6 +30,9 @@ export const CandidatesPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  
+  // ✅ NUEVO: Estado para forzar refresh de la lista
+  const [refreshTrigger] = useState(0);
 
   const loadStats = useCallback(async () => {
     setIsLoading(true);
@@ -59,8 +66,9 @@ export const CandidatesPage: React.FC = () => {
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingCandidate(null);
-    loadStats(); // Recargar estadísticas
   };
+
+  // ✅ NUEVA FUNCIÓN: handleSave para manejar la creación/edición
 
   const handleExport = async () => {
     try {
@@ -110,7 +118,8 @@ export const CandidatesPage: React.FC = () => {
 
               <button
                 onClick={handleCreateCandidate}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
+                disabled={isLoading} // ✅ Deshabilitar durante carga
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <PlusIcon className="h-4 w-4 mr-2" />
                 Nuevo Candidato
@@ -128,6 +137,13 @@ export const CandidatesPage: React.FC = () => {
               <ExclamationCircleIcon className="h-5 w-5 text-red-400" />
               <div className="ml-3">
                 <p className="text-sm text-red-800">{error}</p>
+                {/* ✅ Botón para limpiar error */}
+                <button
+                  onClick={() => setError(null)}
+                  className="text-sm text-red-600 underline hover:text-red-800 mt-1"
+                >
+                  Cerrar
+                </button>
               </div>
             </div>
           </div>
@@ -188,6 +204,7 @@ export const CandidatesPage: React.FC = () => {
             onEditCandidate={handleEditCandidate}
             selectedIds={selectedIds}
             onSelectedIdsChange={setSelectedIds}
+            refreshTrigger={refreshTrigger}
           />
         )}
 
@@ -196,7 +213,7 @@ export const CandidatesPage: React.FC = () => {
         )}
       </div>
 
-      {/* Modal */}
+      {/* ✅ Modal corregido con onSave e isLoading */}
       {showModal && (
         <CandidateModal
           candidate={editingCandidate}

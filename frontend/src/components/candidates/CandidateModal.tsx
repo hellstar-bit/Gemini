@@ -1,4 +1,4 @@
-// frontend/src/components/candidates/CandidateModal.tsx
+// frontend/src/components/candidates/CandidateModal.tsx - VERSIÓN FINAL LIMPIA
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import candidatesService, { type Candidate, type CreateCandidateDto } from '../../services/candidatesService';
@@ -81,12 +81,14 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({
     if (!validateForm()) return;
 
     setLoading(true);
+    
     try {
       if (candidate) {
         await candidatesService.update(candidate.id, formData);
       } else {
         await candidatesService.create(formData);
       }
+      
       onClose();
     } catch (error: any) {
       console.error('Error saving candidate:', error);
@@ -98,8 +100,20 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({
     }
   };
 
+  // ✅ CLAVE: Función para manejar click directo del botón
+  const handleButtonClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    const syntheticEvent = {
+      preventDefault: () => {}
+    } as React.FormEvent;
+    
+    handleSubmit(syntheticEvent);
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
+    
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : 
@@ -360,7 +374,7 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({
             <button
               onClick={onClose}
               disabled={loading}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
             >
               <XMarkIcon className="w-6 h-6 text-gray-500" />
             </button>
@@ -432,7 +446,8 @@ export const CandidateModal: React.FC<CandidateModalProps> = ({
                 </button>
               ) : (
                 <button
-                  type="submit"
+                  type="button" // ✅ CLAVE: type="button" en lugar de "submit"
+                  onClick={handleButtonClick} // ✅ CLAVE: onClick directo
                   disabled={loading}
                   className="px-6 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
                 >

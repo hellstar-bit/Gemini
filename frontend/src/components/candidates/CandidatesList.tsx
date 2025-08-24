@@ -1,4 +1,4 @@
-// frontend/src/components/candidates/CandidatesList.tsx
+// frontend/src/components/candidates/CandidatesList.tsx - CORRECCIÓN
 import React, { useState, useEffect } from 'react';
 import {
   PencilIcon,
@@ -8,6 +8,8 @@ import {
   UsersIcon,
   EnvelopeIcon,
   PhoneIcon,
+  CheckCircleIcon,
+  XCircleIcon,
 } from '@heroicons/react/24/outline';
 import candidatesService, { type Candidate, type CandidateFiltersDto } from '../../services/candidatesService';
 
@@ -16,6 +18,7 @@ interface CandidatesListProps {
   onEditCandidate: (candidate: Candidate) => void;
   selectedIds: number[];
   onSelectedIdsChange: (ids: number[]) => void;
+  refreshTrigger?: number; // ✅ NUEVO PROP para forzar refresh
 }
 
 export const CandidatesList: React.FC<CandidatesListProps> = ({
@@ -23,6 +26,7 @@ export const CandidatesList: React.FC<CandidatesListProps> = ({
   onEditCandidate,
   selectedIds,
   onSelectedIdsChange,
+  refreshTrigger = 0, // ✅ NUEVO PROP
 }) => {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(false);
@@ -41,14 +45,30 @@ export const CandidatesList: React.FC<CandidatesListProps> = ({
       setPagination(response.pagination);
     } catch (error) {
       console.error('Error loading candidates:', error);
+      // Fallback a datos vacíos en caso de error
+      setCandidates([]);
+      setPagination({
+        page: 1,
+        limit: 20,
+        total: 0,
+        pages: 0,
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  // ✅ Efecto para filtros
   useEffect(() => {
     loadCandidates(1);
   }, [filters]);
+
+  // ✅ NUEVO: Efecto para refreshTrigger
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      loadCandidates(pagination.page);
+    }
+  }, [refreshTrigger]);
 
   const handlePageChange = (page: number) => {
     loadCandidates(page);
@@ -59,6 +79,8 @@ export const CandidatesList: React.FC<CandidatesListProps> = ({
       try {
         await candidatesService.delete(candidate.id);
         loadCandidates(pagination.page);
+        // También limpiar de selectedIds si estaba seleccionado
+        onSelectedIdsChange(selectedIds.filter(id => id !== candidate.id));
       } catch (error) {
         console.error('Error deleting candidate:', error);
         alert('Error al eliminar el candidato');
@@ -82,15 +104,32 @@ export const CandidatesList: React.FC<CandidatesListProps> = ({
     }
   };
 
+  // Componente de estado del candidato
+  const CandidateStatus: React.FC<{ candidate: Candidate }> = ({ candidate }) => (
+    <div className="flex flex-wrap gap-1">
+      {candidate.isActive ? (
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+          <CheckCircleIcon className="w-3 h-3 mr-1" />
+          Activo
+        </span>
+      ) : (
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+          <XCircleIcon className="w-3 h-3 mr-1" />
+          Inactivo
+        </span>
+      )}
+    </div>
+  );
+
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
         <div className="p-6">
-          <div className="animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-4 bg-gray-200 rounded"></div>
+                <div key={i} className="h-12 bg-gray-200 rounded"></div>
               ))}
             </div>
           </div>
@@ -99,8 +138,35 @@ export const CandidatesList: React.FC<CandidatesListProps> = ({
     );
   }
 
+  // Verificar si todos los candidatos de la página actual están seleccionados
+  const currentPageIds = candidates.map(candidate => candidate.id);
+  const allCurrentPageSelected = currentPageIds.length > 0 && 
+    currentPageIds.every(id => selectedIds.includes(id));
+  const someCurrentPageSelected = currentPageIds.some(id => selectedIds.includes(id));
+
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-gray-200">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Lista de Candidatos
+            </h3>
+            <p className="text-sm text-gray-600">
+              {pagination.total} candidato{pagination.total !== 1 ? 's' : ''} encontrado{pagination.total !== 1 ? 's' : ''}
+            </p>
+          </div>
+          
+          {selectedIds.length > 0 && (
+            <div className="text-sm text-primary-600 font-medium">
+              {selectedIds.length} seleccionado{selectedIds.length > 1 ? 's' : ''}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Tabla */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -108,7 +174,10 @@ export const CandidatesList: React.FC<CandidatesListProps> = ({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <input
                   type="checkbox"
-                  checked={selectedIds.length === candidates.length && candidates.length > 0}
+                  checked={allCurrentPageSelected}
+                  ref={input => {
+                    if (input) input.indeterminate = someCurrentPageSelected && !allCurrentPageSelected;
+                  }}
                   onChange={(e) => handleSelectAll(e.target.checked)}
                   className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                 />
@@ -138,10 +207,16 @@ export const CandidatesList: React.FC<CandidatesListProps> = ({
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {candidates.map((candidate) => {
-              const cumplimiento = candidate.meta > 0 ? Math.round(((candidate.votersCount || 0) / candidate.meta) * 100) : 0;
-              
+              const cumplimiento = candidate.meta > 0 ? 
+                Math.round((candidate.votersCount || 0) / candidate.meta * 100) : 0;
+
               return (
-                <tr key={candidate.id} className="hover:bg-gray-50">
+                <tr
+                  key={candidate.id}
+                  className={`hover:bg-gray-50 transition-colors ${
+                    selectedIds.includes(candidate.id) ? 'bg-primary-50' : ''
+                  }`}
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <input
                       type="checkbox"
@@ -150,83 +225,101 @@ export const CandidatesList: React.FC<CandidatesListProps> = ({
                       className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                     />
                   </td>
+                  
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <IdentificationIcon className="h-5 w-5 text-gray-400 mr-3" />
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{candidate.name}</div>
-                        {candidate.description && (
-                          <div className="text-sm text-gray-500 truncate max-w-xs">{candidate.description}</div>
-                        )}
+                      <div className="flex-shrink-0 h-10 w-10">
+                        <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
+                          <IdentificationIcon className="h-5 w-5 text-primary-600" />
+                        </div>
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">
+                          {candidate.name}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          ID: {candidate.id}
+                        </div>
                       </div>
                     </div>
                   </td>
+                  
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{candidate.position || '-'}</div>
-                    <div className="text-sm text-gray-500">{candidate.party || 'Sin partido'}</div>
+                    <div className="text-sm text-gray-900">
+                      {candidate.position || 'Sin especificar'}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {candidate.party || 'Sin partido'}
+                    </div>
                   </td>
+                  
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="space-y-1">
-                      <div className="flex items-center text-sm text-gray-900">
-                        <EnvelopeIcon className="h-4 w-4 mr-2 text-gray-400" />
-                        <span className="truncate max-w-xs">{candidate.email}</span>
-                      </div>
+                      {candidate.email && (
+                        <div className="flex items-center text-sm text-gray-900">
+                          <EnvelopeIcon className="w-4 h-4 mr-2 text-gray-400" />
+                          {candidate.email}
+                        </div>
+                      )}
                       {candidate.phone && (
                         <div className="flex items-center text-sm text-gray-500">
-                          <PhoneIcon className="h-4 w-4 mr-2 text-gray-400" />
+                          <PhoneIcon className="w-4 h-4 mr-2 text-gray-400" />
                           {candidate.phone}
                         </div>
                       )}
                     </div>
                   </td>
+                  
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="text-sm text-gray-900">
-                        {candidate.votersCount || 0} / {candidate.meta}
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {(candidate.votersCount || 0).toLocaleString()} / {candidate.meta.toLocaleString()}
                       </div>
-                      <div className="ml-2">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          cumplimiento >= 100 ? 'bg-green-100 text-green-800' :
-                          cumplimiento >= 75 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {cumplimiento}%
-                        </span>
+                      <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                        <div
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            cumplimiento >= 80 ? 'bg-green-500' :
+                            cumplimiento >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                          }`}
+                          style={{ width: `${Math.min(cumplimiento, 100)}%` }}
+                        />
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {cumplimiento}% cumplimiento
                       </div>
                     </div>
                   </td>
+                  
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="space-y-1">
-                      <div className="flex items-center text-sm text-gray-900">
-                        <UserGroupIcon className="h-4 w-4 mr-1" />
+                    <div className="flex space-x-4 text-sm text-gray-900">
+                      <div className="flex items-center">
+                        <UserGroupIcon className="w-4 h-4 mr-1 text-gray-400" />
                         {candidate.groupsCount || 0} grupos
                       </div>
-                      <div className="flex items-center text-sm text-gray-500">
-                        <UsersIcon className="h-4 w-4 mr-1" />
+                      <div className="flex items-center">
+                        <UsersIcon className="w-4 h-4 mr-1 text-gray-400" />
                         {candidate.leadersCount || 0} líderes
                       </div>
                     </div>
                   </td>
+                  
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      candidate.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {candidate.isActive ? 'Activo' : 'Inactivo'}
-                    </span>
+                    <CandidateStatus candidate={candidate} />
                   </td>
+                  
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end space-x-2">
                       <button
                         onClick={() => onEditCandidate(candidate)}
-                        className="text-primary-600 hover:text-primary-900"
-                        title="Editar"
+                        className="text-primary-600 hover:text-primary-900 p-1 rounded hover:bg-primary-50"
+                        title="Editar candidato"
                       >
                         <PencilIcon className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(candidate)}
-                        className="text-red-600 hover:text-red-900"
-                        title="Eliminar"
+                        className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+                        title="Eliminar candidato"
                       >
                         <TrashIcon className="h-4 w-4" />
                       </button>
@@ -241,67 +334,34 @@ export const CandidatesList: React.FC<CandidatesListProps> = ({
 
       {/* Paginación */}
       {pagination.pages > 1 && (
-        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <button
-              onClick={() => handlePageChange(pagination.page - 1)}
-              disabled={pagination.page === 1}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-            >
-              Anterior
-            </button>
-            <button
-              onClick={() => handlePageChange(pagination.page + 1)}
-              disabled={pagination.page === pagination.pages}
-              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-            >
-              Siguiente
-            </button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Mostrando{' '}
-                <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span>
-                {' '}a{' '}
-                <span className="font-medium">
-                  {Math.min(pagination.page * pagination.limit, pagination.total)}
-                </span>
-                {' '}de{' '}
-                <span className="font-medium">{pagination.total}</span>
-                {' '}resultados
-              </p>
+        <div className="px-6 py-3 border-t border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-700">
+              Mostrando {Math.min((pagination.page - 1) * pagination.limit + 1, pagination.total)} a{' '}
+              {Math.min(pagination.page * pagination.limit, pagination.total)} de{' '}
+              {pagination.total} resultados
             </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                <button
-                  onClick={() => handlePageChange(pagination.page - 1)}
-                  disabled={pagination.page === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Anterior
-                </button>
-                {[...Array(pagination.pages)].map((_, i) => (
-                  <button
-                    key={i + 1}
-                    onClick={() => handlePageChange(i + 1)}
-                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                      pagination.page === i + 1
-                        ? 'z-10 bg-primary-50 border-primary-500 text-primary-600'
-                        : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-                <button
-                  onClick={() => handlePageChange(pagination.page + 1)}
-                  disabled={pagination.page === pagination.pages}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Siguiente
-                </button>
-              </nav>
+            
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={pagination.page === 1}
+                className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Anterior
+              </button>
+              
+              <span className="text-sm text-gray-700">
+                Página {pagination.page} de {pagination.pages}
+              </span>
+              
+              <button
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={pagination.page === pagination.pages}
+                className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Siguiente
+              </button>
             </div>
           </div>
         </div>

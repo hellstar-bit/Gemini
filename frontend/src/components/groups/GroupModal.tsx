@@ -1,4 +1,4 @@
-// frontend/src/components/groups/GroupModal.tsx
+// frontend/src/components/groups/GroupModal.tsx - CORREGIDO
 import React, { useState, useEffect } from 'react';
 import { 
   XMarkIcon, 
@@ -98,6 +98,17 @@ export const GroupModal: React.FC<GroupModalProps> = ({ group, onClose }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ✅ NUEVA FUNCIÓN: Para manejar click directo del botón
+  const handleButtonClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    const syntheticEvent = {
+      preventDefault: () => {}
+    } as React.FormEvent;
+    
+    handleSubmit(syntheticEvent);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -351,7 +362,7 @@ export const GroupModal: React.FC<GroupModalProps> = ({ group, onClose }) => {
             <button
               onClick={onClose}
               disabled={loading}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
             >
               <XMarkIcon className="w-6 h-6 text-gray-500" />
             </button>
@@ -423,7 +434,8 @@ export const GroupModal: React.FC<GroupModalProps> = ({ group, onClose }) => {
                 </button>
               ) : (
                 <button
-                  type="submit"
+                  type="button" // ✅ CAMBIO CLAVE: De "submit" a "button"
+                  onClick={handleButtonClick} // ✅ CAMBIO CLAVE: onClick directo
                   disabled={loading}
                   className="px-6 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
                 >
