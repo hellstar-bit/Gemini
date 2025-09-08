@@ -1,4 +1,4 @@
-// frontend/src/components/layout/Sidebar.tsx - ACTUALIZADO
+// frontend/src/components/layout/Sidebar.tsx - ACTUALIZADO con vista jerárquica
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../store/hooks';
@@ -26,7 +26,8 @@ import {
   UsersIcon,
   IdentificationIcon,
   AcademicCapIcon,
-  ClipboardDocumentCheckIcon
+  ClipboardDocumentCheckIcon,
+  RectangleStackIcon // ✅ NUEVO ICONO para vista jerárquica
 } from '@heroicons/react/24/outline';
 
 const navigation = [
@@ -44,10 +45,17 @@ const navigation = [
     description: 'Candidatos, grupos, líderes y planillados',
     gradient: 'from-indigo-500 to-indigo-600',
     children: [
+      { 
+        name: 'Vista Jerárquica', 
+        href: '/campaign/hierarchy', 
+        icon: RectangleStackIcon,
+        description: 'Vista completa integrada',
+        isNew: true // ✅ Marcar como nueva funcionalidad
+      },
       { name: 'Candidatos', href: '/campaign/candidates', icon: IdentificationIcon },
       { name: 'Grupos', href: '/campaign/groups', icon: UserGroupIcon },
       { name: 'Líderes', href: '/campaign/leaders', icon: AcademicCapIcon },
-      { name: 'Planillados', href: '/campaign/planillados', icon: ClipboardDocumentCheckIcon }, // ✅ NUEVO
+      { name: 'Planillados', href: '/campaign/planillados', icon: ClipboardDocumentCheckIcon },
     ]
   },
   {
@@ -256,8 +264,20 @@ export const Sidebar: React.FC = () => {
                       }
                     >
                       <child.icon className="w-4 h-4" />
-                      <span className="font-medium">{child.name}</span>
-                      {child.href === '/campaign/planillados' }
+                      <span className="font-medium flex items-center">
+                        {child.name}
+                        {/* ✅ Badge para nueva funcionalidad */}
+                        {child.isNew && (
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Nuevo
+                          </span>
+                        )}
+                      </span>
+                      {child.description && (
+                        <span className="ml-2 text-xs text-gray-400 hidden xl:block">
+                          {child.description}
+                        </span>
+                      )}
                     </NavLink>
                   ))}
                 </div>

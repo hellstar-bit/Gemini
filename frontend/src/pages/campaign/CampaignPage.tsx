@@ -1,4 +1,4 @@
-// frontend/src/pages/campaign/CampaignPage.tsx - CON DATOS REALES
+// frontend/src/pages/campaign/CampaignPage.tsx - ACTUALIZADO con vista jerárquica
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -10,9 +10,10 @@ import {
   ArrowRightIcon,
   ChartBarIcon,
   UserPlusIcon,
-  DocumentDuplicateIcon,
-  PlusIcon,
   FireIcon,
+  RectangleStackIcon,
+  EyeIcon,
+  ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
 
 // Importar servicios para obtener estadísticas reales
@@ -90,6 +91,18 @@ export const CampaignPage: React.FC = () => {
     loadStats();
   }, []);
 
+  // ✅ NUEVA SECCIÓN - Vista jerárquica destacada
+  const hierarchyModule = {
+    name: 'Vista Jerárquica Completa',
+    description: 'Gestiona toda la estructura de campaña en una sola vista integrada',
+    href: '/campaign/hierarchy',
+    icon: RectangleStackIcon,
+    gradient: 'from-emerald-500 to-emerald-600',
+    features: ['Navegación intuitiva', 'Vista integrada', 'Jerarquía completa', 'Gestión unificada'],
+    isNew: true,
+    isRecommended: true
+  };
+
   const modules = [
     {
       name: 'Candidatos',
@@ -137,32 +150,18 @@ export const CampaignPage: React.FC = () => {
         total: stats.planillados.total, 
         verified: stats.planillados.verified 
       },
-      features: ['Analytics', 'Gráficos', 'Mapas', 'Filtros avanzados'],
-      isNew: true
+      features: ['Analytics', 'Gráficos', 'Mapas', 'Filtros avanzados']
     }
   ];
 
   const quickActions = [
     {
-      name: 'Nuevo Candidato',
-      description: 'Registrar nuevo candidato',
-      href: '/campaign/candidates',
-      icon: PlusIcon,
-      color: 'blue'
-    },
-    {
-      name: 'Crear Grupo',
-      description: 'Formar nuevo grupo de trabajo',
-      href: '/campaign/groups',
-      icon: UserGroupIcon,
-      color: 'green'
-    },
-    {
-      name: 'Nuevo Líder',
-      description: 'Registrar líder de territorio',
-      href: '/campaign/leaders',
-      icon: UserPlusIcon,
-      color: 'purple'
+      name: 'Vista Jerárquica',
+      description: 'Acceso completo integrado',
+      href: '/campaign/hierarchy',
+      icon: RectangleStackIcon,
+      color: 'emerald',
+      isNew: true
     },
     {
       name: 'Nuevo Planillado',
@@ -177,13 +176,6 @@ export const CampaignPage: React.FC = () => {
       href: '/campaign/planillados',
       icon: ChartBarIcon,
       color: 'green'
-    },
-    {
-      name: 'Importar Datos',
-      description: 'Cargar archivo masivo',
-      href: '/operations/import',
-      icon: DocumentDuplicateIcon,
-      color: 'blue'
     }
   ];
 
@@ -203,34 +195,162 @@ export const CampaignPage: React.FC = () => {
             <div className="flex items-center space-x-4">
               <div className="text-right">
                 <div className="text-sm font-medium text-gray-900">
-                  {isLoading ? '...' : stats.planillados.total.toLocaleString()}
+                  {isLoading ? 'Cargando...' : `${stats.planillados.total.toLocaleString()} votantes registrados`}
                 </div>
-                <div className="text-xs text-gray-500">Planillados totales</div>
-              </div>
-              <div className="text-right">
-                <div className="text-sm font-medium text-green-600">
-                  {isLoading ? '...' : stats.planillados.total > 0 
-                    ? `${Math.round((stats.planillados.verified / stats.planillados.total) * 100)}%`
-                    : '0%'
-                  }
+                <div className="text-xs text-gray-500">
+                  {isLoading ? '' : `${stats.leaders.total} líderes activos`}
                 </div>
-                <div className="text-xs text-gray-500">Verificados</div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* Error Message */}
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-            <div className="text-red-800 text-sm">{error}</div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* ✅ NUEVA SECCIÓN - Vista Jerárquica Destacada */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-medium text-gray-900">Vista Recomendada</h2>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+              ✨ Recomendado
+            </span>
+          </div>
+          
+          <Link 
+            to={hierarchyModule.href}
+            className="block group"
+          >
+            <div className={`relative overflow-hidden rounded-xl bg-gradient-to-r ${hierarchyModule.gradient} p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform group-hover:scale-[1.02]`}>
+              <div className="absolute top-4 right-4">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white bg-opacity-20 text-white">
+                  Nuevo
+                </span>
+              </div>
+              
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                    <hierarchyModule.icon className="w-7 h-7 text-white" />
+                  </div>
+                </div>
+                
+                <div className="ml-6 flex-1">
+                  <h3 className="text-xl font-semibold text-white">{hierarchyModule.name}</h3>
+                  <p className="mt-2 text-white text-opacity-90">{hierarchyModule.description}</p>
+                  
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {hierarchyModule.features.map((feature, index) => (
+                      <span 
+                        key={index}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white bg-opacity-10 text-white"
+                      >
+                        {feature}
+                      </span>
+                    ))}
+                  </div>
+                  
+                  <div className="mt-6 flex items-center text-white">
+                    <EyeIcon className="w-5 h-5 mr-2" />
+                    <span className="text-sm font-medium">Explora la estructura completa de tu campaña</span>
+                    <ArrowRightIcon className="ml-3 w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Link>
+        </div>
+
+        {/* Resumen de estadísticas */}
+        {!isLoading && !error && (
+          <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <IdentificationIcon className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Candidatos</dt>
+                      <dd className="text-lg font-medium text-gray-900">{stats.candidates.total}</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <UserGroupIcon className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Grupos</dt>
+                      <dd className="text-lg font-medium text-gray-900">{stats.groups.total}</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <AcademicCapIcon className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Líderes</dt>
+                      <dd className="text-lg font-medium text-gray-900">{stats.leaders.total}</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <ClipboardDocumentCheckIcon className="h-6 w-6 text-primary-600" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Planillados</dt>
+                      <dd className="text-lg font-medium text-gray-900">{stats.planillados.total.toLocaleString()}</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Quick Actions */}
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <ExclamationCircleIcon className="h-5 w-5 text-red-400" />
+              </div>
+              <div className="ml-3">
+                <div className="text-sm text-red-600">{error}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Acciones rápidas */}
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">⚡ Acciones Rápidas</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -245,9 +365,16 @@ export const CampaignPage: React.FC = () => {
                     <action.icon className={`w-5 h-5 text-${action.color}-600`} />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-medium text-gray-900 group-hover:text-primary-600">
-                      {action.name}
-                    </h3>
+                    <div className="flex items-center">
+                      <h3 className="font-medium text-gray-900 group-hover:text-primary-600">
+                        {action.name}
+                      </h3>
+                      {action.isNew && (
+                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                          Nuevo
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-600">{action.description}</p>
                   </div>
                   <ArrowRightIcon className="w-4 h-4 text-gray-400 group-hover:text-primary-600 transition-colors" />
@@ -257,85 +384,75 @@ export const CampaignPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Modules Grid */}
+        {/* Módulos principales */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-900">📋 Módulos de Gestión</h2>
-            <span className="text-sm text-gray-500">{modules.length} módulos disponibles</span>
+            <h2 className="text-lg font-medium text-gray-900">Módulos de Gestión</h2>
+            <p className="text-sm text-gray-500">Administra cada aspecto de tu campaña</p>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2">
             {modules.map((module) => (
               <Link
                 key={module.name}
                 to={module.href}
-                className="bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-all duration-300 overflow-hidden group relative"
+                className="group relative bg-white p-6 rounded-lg shadow hover:shadow-md transition-all duration-200 border border-gray-200 hover:border-gray-300"
               >
-                {module.isNew && (
-                  <div className="absolute top-4 right-4 z-10">
-                    <span className="bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded-full">
-                      Nuevo
-                    </span>
+                <div className="flex items-start">
+                  <div className={`flex-shrink-0 w-10 h-10 bg-gradient-to-r ${module.gradient} rounded-lg flex items-center justify-center`}>
+                    <module.icon className="w-6 h-6 text-white" />
                   </div>
-                )}
-                
-                <div className="p-6">
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center space-x-4">
-                      <div className={`w-12 h-12 bg-gradient-to-br ${module.gradient} rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-300`}>
-                        <module.icon className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
-                          {module.name}
-                        </h3>
-                        <p className="text-sm text-gray-600 max-w-xs">
-                          {module.description}
-                        </p>
-                      </div>
+                  
+                  <div className="ml-4 flex-1">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium text-gray-900 group-hover:text-primary-600 transition-colors">
+                        {module.name}
+                      </h3>
+                      <ArrowRightIcon className="w-5 h-5 text-gray-400 group-hover:text-primary-500 group-hover:translate-x-1 transition-all duration-200" />
                     </div>
-                    <ArrowRightIcon className="w-5 h-5 text-gray-400 group-hover:text-primary-600 transition-colors" />
-                  </div>
-
-                  {/* Stats */}
-                  <div className="flex items-center space-x-6 mb-4">
-                    <div>
-                      <div className="text-2xl font-bold text-gray-900">
-                        {isLoading ? '...' : (module.stats.total || module.stats.verified || 0).toLocaleString()}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {module.name === 'Planillados' ? 'Planillados' : 
-                         module.name === 'Candidatos' ? 'Candidatos' :
-                         module.name === 'Grupos' ? 'Grupos' : 
-                         module.name === 'Líderes' ? 'Total' : 'Total'}
-                      </div>
-                    </div>
-                    {(module.stats.active || module.stats.verified) && (
-                      <div>
-                        <div className="text-lg font-semibold text-green-600">
-                          {isLoading ? '...' : (module.stats.active || module.stats.verified || 0).toLocaleString()}
+                    
+                    <p className="mt-2 text-sm text-gray-600">{module.description}</p>
+                    
+                    {/* Estadísticas */}
+                    {module.stats && (
+                      <div className="mt-4 flex items-center space-x-4">
+                        <div className="flex items-center text-sm text-gray-500">
+                          <span className="font-medium text-gray-900">{module.stats.total}</span>
+                          <span className="ml-1">total</span>
                         </div>
-                        <div className="text-xs text-gray-500">
-                          {module.name === 'Planillados' ? 'Verificados' : 'Activos'}
-                        </div>
+                        {module.stats.active !== undefined && (
+                          <div className="flex items-center text-sm text-gray-500">
+                            <span className="font-medium text-green-600">{module.stats.active}</span>
+                            <span className="ml-1">activos</span>
+                          </div>
+                        )}
+                        {module.stats.verified !== undefined && (
+                          <div className="flex items-center text-sm text-gray-500">
+                            <span className="font-medium text-green-600">{module.stats.verified}</span>
+                            <span className="ml-1">verificados</span>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </div>
-
-                  {/* Features */}
-                  <div className="space-y-1">
-                    {module.features.map((feature, index) => (
-                      <div key={index} className="flex items-center text-sm text-gray-600">
-                        <div className="w-1.5 h-1.5 bg-primary-400 rounded-full mr-2"></div>
-                        {feature}
-                      </div>
-                    ))}
+                    
+                    {/* Features */}
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {module.features.slice(0, 3).map((feature, index) => (
+                        <span 
+                          key={index}
+                          className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800"
+                        >
+                          {feature}
+                        </span>
+                      ))}
+                      {module.features.length > 3 && (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                          +{module.features.length - 3}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-
-                {/* Bottom gradient - Corregido para que coincida con el color del módulo */}
-                <div className={`h-1 bg-gradient-to-r ${module.gradient}`}></div>
               </Link>
             ))}
           </div>

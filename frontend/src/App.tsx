@@ -1,4 +1,4 @@
-// frontend/src/App.tsx - CORREGIDO: Añadidas rutas principales faltantes
+// frontend/src/App.tsx - ACTUALIZADO con vista jerárquica
 
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
@@ -18,9 +18,10 @@ import ImportPage from './pages/operations/ImportPage';
 import { LeadersPage } from './pages/campaign/LeadersPage';
 import { GroupsPage } from './pages/campaign/GroupsPage';
 import { CandidatesPage } from './pages/campaign/CandidatesPage';
-
-// ✅ SOLO IMPORTAR CampaignPage - las otras no son necesarias por ahora
 import { CampaignPage } from './pages/campaign/CampaignPage';
+
+// ✅ NUEVA PÁGINA - Vista jerárquica
+import { CampaignHierarchyPage } from './pages/campaign/CampaignHierarchyPage';
 
 // Página de Coming Soon para rutas no implementadas
 const ComingSoon: React.FC = () => (
@@ -36,7 +37,7 @@ const ComingSoon: React.FC = () => (
 );
 
 // =====================================
-// ✅ COMPONENTE DE RUTAS CORREGIDO
+// ✅ COMPONENTE DE RUTAS ACTUALIZADO
 // =====================================
 
 const AppRoutes: React.FC = () => {
@@ -65,8 +66,13 @@ const AppRoutes: React.FC = () => {
             <Route path="dashboard" element={<Dashboard />} />
             
             {/* ===== GESTIÓN DE CAMPAÑA ===== */}
-            {/* ✅ Ruta principal de campaña - SOLO ESTA ES NECESARIA */}
+            {/* Ruta principal de campaña */}
             <Route path="campaign" element={<CampaignPage />} />
+            
+            {/* ✅ NUEVA RUTA - Vista jerárquica completa */}
+            <Route path="campaign/hierarchy" element={<CampaignHierarchyPage />} />
+            
+            {/* Rutas individuales existentes */}
             <Route path="campaign/candidates" element={<CandidatesPage />} />
             <Route path="campaign/groups" element={<GroupsPage />} />
             <Route path="campaign/leaders" element={<LeadersPage />} />
@@ -84,12 +90,15 @@ const AppRoutes: React.FC = () => {
             <Route path="validation/duplicates" element={<ComingSoon />} />
             <Route path="validation/geo-errors" element={<ComingSoon />} />
             
-            {/* ===== OTRAS RUTAS ===== */}
+            {/* ===== INTELIGENCIA ELECTORAL ===== */}
             <Route path="analytics/*" element={<ComingSoon />} />
+            <Route path="analytics/maps" element={<ComingSoon />} />
+            <Route path="analytics/stats" element={<ComingSoon />} />
+            <Route path="analytics/reports" element={<ComingSoon />} />
+            
+            {/* ===== OTRAS RUTAS ===== */}
             <Route path="command" element={<ComingSoon />} />
             <Route path="reference" element={<ComingSoon />} />
-            
-            {/* Rutas de configuración y otras */}
             <Route path="settings" element={<ComingSoon />} />
             <Route path="help" element={<ComingSoon />} />
           </Route>
