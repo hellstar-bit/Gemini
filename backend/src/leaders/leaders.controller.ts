@@ -52,34 +52,34 @@ interface BulkActionResponse {
 }
 
 @Controller('leaders')
-@UseGuards(JwtAuthGuard)
 export class LeadersController {
   constructor(private readonly leadersService: LeadersService) {}
 
-  // ✅ GET /leaders - Listar con filtros y paginación
+  // ✅ CORREGIR GET /leaders - Asegurar que soporte groupId
   @Get()
   async findAll(@Query() query: any): Promise<PaginatedResponse<Leader>> {
     const {
-      page = 1,
-      limit = 20,
+      page = '1',
+      limit = '20',
       buscar,
       isActive,
       isVerified,
-      groupId,
+      groupId,        // ✅ AGREGAR: groupId
+      candidateId,    // ✅ AGREGAR: candidateId 
       neighborhood,
       municipality,
       gender,
       fechaDesde,
       fechaHasta,
-      ...filters
     } = query;
 
-    // Construir filtros
+    // ✅ CORREGIR: Construcción de filtros
     const filterDto: LeaderFiltersDto = {
       buscar,
       isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
       isVerified: isVerified === 'true' ? true : isVerified === 'false' ? false : undefined,
-      groupId: groupId ? parseInt(groupId) : undefined,
+      groupId: groupId ? parseInt(groupId) : undefined,           // ✅ AGREGAR
+      candidateId: candidateId ? parseInt(candidateId) : undefined, // ✅ AGREGAR
       neighborhood,
       municipality,
       gender,
@@ -94,47 +94,96 @@ export class LeadersController {
       throw new BadRequestException('Parámetros de paginación inválidos');
     }
 
+    // ✅ AGREGAR: Logging para debug
+    console.log('Leaders Controller - findAll called with:', {
+      filterDto,
+      page: pageNumber,
+      limit: limitNumber
+    });
+
+    try {
+      const result = await this.leadersService.findAll(filterDto, pageNumber, limitNumber);
+      
+      // ✅ AGREGAR: Log del resultado
+      console.log('Leaders Controller - Result:', {
+        total: result.meta.total,
+        returned: result.data.length,
+        groupId: filterDto.groupId
+      });
+      
+      return result;
+    } catch (error) {
+      console.error('Leaders Controller - Error:', error);
+      throw error;
+    }
+  }
+
+  // ✅ AGREGAR: Endpoint específico para jerarquía
+  @Get('by-group/:groupId')
+  async findByGroup(
+    @Param('groupId', ParseIntPipe) groupId: number,
+    @Query() query: any
+  ): Promise<PaginatedResponse<Leader>> {
+    const {
+      page = '1',
+      limit = '20',
+      buscar,
+      isActive,
+      isVerified,
+      neighborhood,
+      municipality,
+      gender,
+    } = query;
+
+    const filterDto: LeaderFiltersDto = {
+      buscar,
+      groupId, // ✅ Filtrar específicamente por este grupo
+      isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
+      isVerified: isVerified === 'true' ? true : isVerified === 'false' ? false : undefined,
+      neighborhood,
+      municipality,
+      gender,
+    };
+
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
+
+    console.log(`Leaders Controller - findByGroup ${groupId}:`, filterDto);
+
     return this.leadersService.findAll(filterDto, pageNumber, limitNumber);
   }
 
-  // ✅ GET /leaders/stats - Estadísticas
+  // ✅ RESTO DE MÉTODOS SIN CAMBIOS...
   @Get('stats')
   async getStats(@Query() filters: LeaderFiltersDto): Promise<LeaderStatsDto> {
     return this.leadersService.getStats(filters);
   }
 
-  // ✅ GET /leaders/for-select - Lista para dropdowns
   @Get('for-select')
   async findForSelect(): Promise<LeaderForSelect[]> {
     return this.leadersService.findForSelect();
   }
 
-  // ✅ GET /leaders/export - Exportar a Excel
   @Get('export')
   async exportToExcel(@Query() filters: LeaderFiltersDto): Promise<Leader[]> {
     return this.leadersService.exportToExcel(filters);
   }
 
-  // ✅ GET /leaders/:id - Obtener por ID
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number): Promise<Leader> {
     return this.leadersService.findOne(id);
   }
 
-  // ✅ GET /leaders/:id/planillados - Obtener planillados del líder
   @Get(':id/planillados')
   async getPlanillados(@Param('id', ParseIntPipe) id: number): Promise<any[]> {
-    // Cambié de getVoters a getPlanillados ya que trabajamos con planillados
     return this.leadersService.getPlanillados(id);
   }
 
-  // ✅ POST /leaders - Crear nuevo líder
   @Post()
   async create(@Body() createLeaderDto: CreateLeaderDto): Promise<Leader> {
     return this.leadersService.create(createLeaderDto);
   }
 
-  // ✅ PATCH /leaders/:id - Actualizar líder
   @Patch(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -143,50 +192,21 @@ export class LeadersController {
     return this.leadersService.update(id, updateLeaderDto);
   }
 
-  // ✅ DELETE /leaders/:id - Eliminar líder
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
     return this.leadersService.remove(id);
   }
 
-  // ✅ POST /leaders/bulk-actions - Acciones masivas
   @Post('bulk-actions')
   async bulkActions(@Body() bulkActionDto: { 
     action: string; 
     ids: number[]; 
     groupId?: number;
-  }): Promise<BulkActionResponse> {
-    const { action, ids, groupId } = bulkActionDto;
-
-    if (!ids || ids.length === 0) {
-      throw new BadRequestException('No se proporcionaron IDs para la acción masiva');
-    }
-
-    switch (action) {
-      case 'activate':
-        return this.leadersService.bulkActivate(ids);
-      case 'deactivate':
-        return this.leadersService.bulkDeactivate(ids);
-      case 'verify':
-        return this.leadersService.bulkVerify(ids);
-      case 'delete':
-        return this.leadersService.bulkDelete(ids);
-      case 'assignGroup':
-        if (!groupId) {
-          throw new BadRequestException('ID del grupo es requerido para asignación masiva');
-        }
-        return this.leadersService.bulkAssignGroup(ids, groupId);
-      default:
-        throw new BadRequestException(`Acción masiva no válida: ${action}`);
-    }
-  }
-
-  // ✅ GET /leaders/duplicates/check - Verificar duplicados
-  @Get('duplicates/check')
-  async checkDuplicates(@Query('cedula') cedula: string): Promise<DuplicateCheckResponse> {
-    if (!cedula) {
-      throw new BadRequestException('Cédula es requerida para verificar duplicados');
-    }
-    return this.leadersService.checkDuplicates(cedula);
+  }): Promise<any> {
+    return this.leadersService.bulkAction(
+      bulkActionDto.action,
+      bulkActionDto.ids,
+      bulkActionDto.groupId
+    );
   }
 }

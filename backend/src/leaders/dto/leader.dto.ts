@@ -144,7 +144,6 @@ export class UpdateLeaderDto {
 export class LeaderFiltersDto {
   @IsOptional()
   @IsString()
-  @Length(1, 100)
   buscar?: string;
 
   @IsOptional()
@@ -157,46 +156,109 @@ export class LeaderFiltersDto {
   @Transform(({ value }) => value === 'true' || value === true)
   isVerified?: boolean;
 
+  // ✅ AGREGAR: groupId para filtrar por grupo
   @IsOptional()
   @IsInt()
-  @Min(1)
-  @Type(() => Number)
+  @Transform(({ value }) => parseInt(value))
   groupId?: number;
+
+  // ✅ AGREGAR: candidateId para filtrar por candidato
+  @IsOptional()
+  @IsInt()
+  @Transform(({ value }) => parseInt(value))
+  candidateId?: number;
 
   @IsOptional()
   @IsString()
-  @Length(1, 100)
   neighborhood?: string;
 
   @IsOptional()
   @IsString()
-  @Length(1, 100)
   municipality?: string;
 
   @IsOptional()
-  @IsEnum(['M', 'F', 'Other'])
-  gender?: 'M' | 'F' | 'Other';
+  @IsString()
+  gender?: 'M' | 'F' | 'Otro';
 
   @IsOptional()
   @IsDateString()
+  @Transform(({ value }) => value ? new Date(value) : undefined)
   fechaDesde?: Date;
 
   @IsOptional()
   @IsDateString()
+  @Transform(({ value }) => value ? new Date(value) : undefined)
   fechaHasta?: Date;
+}
+export interface LeaderForSelect {
+  id: number;
+  firstName: string;
+  lastName: string;
+  cedula: string;
+  isActive: boolean;
+  groupName?: string;
 }
 
 // ✅ DTO para respuesta de estadísticas
-export interface LeaderStatsDto {
+export class LeaderStatsDto {
   total: number;
   activos: number;
+  inactivos: number;
   verificados: number;
-  promedioVotantes: number;
+  noVerificados: number;
+  
+  // Estadísticas por grupo
   porGrupo: Record<string, number>;
+  
+  // Estadísticas por barrio/municipio
   porBarrio: Record<string, number>;
-  topLideres: Record<string, number>;
+  porMunicipio: Record<string, number>;
+  
+  // Estadísticas por género
+  porGenero: Record<string, number>;
+  
+  // Estadísticas de rendimiento
+  promedioVotantesPorLider: number;
+  lideresConMeta: number;
+  lideresSinMeta: number;
+  
+  // Top performers
+  topLideres: Array<{
+    id: number;
+    nombre: string;
+    grupo: string;
+    votantes: number;
+    meta: number;
+    porcentaje: number;
+  }>;
 }
-
+export interface HierarchyLeaderResponse {
+  id: number;
+  cedula: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  neighborhood?: string;
+  municipality?: string;
+  meta: number;
+  isActive: boolean;
+  isVerified: boolean;
+  groupId: number;
+  group?: {
+    id: number;
+    name: string;
+    candidate?: {
+      id: number;
+      name: string;
+    };
+  };
+  planilladosCount: number;
+  votersCount: number; // Alias para planilladosCount
+  createdAt: string;
+  updatedAt: string;
+}
 // ✅ DTO para acciones masivas
 export class BulkLeaderActionDto {
   @IsNotEmpty()

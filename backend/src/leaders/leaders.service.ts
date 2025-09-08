@@ -41,14 +41,16 @@ export class LeadersService {
   limit: number = 20
 ): Promise<PaginatedResponse<Leader>> {
   try {
+    console.log('LeadersService.findAll called with:', { filters, page, limit });
+
     // Crear query builder con filtros
     const queryBuilder = this.createQueryBuilder(filters);
     
-    // Incluir relaciones
+    // ✅ INCLUIR relaciones necesarias
     queryBuilder.leftJoinAndSelect('leader.group', 'group');
-    queryBuilder.leftJoinAndSelect('leader.planillados', 'planillados');
+    queryBuilder.leftJoinAndSelect('group.candidate', 'candidate');
     
-    // Contar planillados para cada líder
+    // ✅ AGREGAR: Contar planillados para cada líder
     queryBuilder.loadRelationCountAndMap('leader.planilladosCount', 'leader.planillados');
     
     // Paginación
@@ -59,8 +61,33 @@ export class LeadersService {
     queryBuilder.orderBy('leader.firstName', 'ASC');
     queryBuilder.addOrderBy('leader.lastName', 'ASC');
     
+    // ✅ AGREGAR: Log de la consulta SQL generada
+    const sqlQuery = queryBuilder.getQuery();
+    const parameters = queryBuilder.getParameters();
+    console.log('Generated SQL:', sqlQuery);
+    console.log('Parameters:', parameters);
+    
     // Ejecutar consulta
     const [leaders, total] = await queryBuilder.getManyAndCount();
+
+    console.log(`Found ${total} leaders, returning ${leaders.length} for page ${page}`);
+
+    // ✅ VERIFICAR si hay líderes pero aparecen como "no hay"
+    if (filters.groupId && total === 0) {
+      // Hacer consulta adicional sin filtros para debug
+      const debugQuery = this.leaderRepository.createQueryBuilder('leader')
+        .leftJoin('leader.group', 'group')
+        .where('leader.groupId = :groupId', { groupId: filters.groupId });
+      
+      const debugCount = await debugQuery.getCount();
+      console.log(`DEBUG: Found ${debugCount} leaders with groupId ${filters.groupId} without other filters`);
+      
+      if (debugCount > 0) {
+        console.log('Issue might be with additional filters');
+        const debugLeaders = await debugQuery.limit(5).getMany();
+        console.log('Sample leaders:', debugLeaders.map(l => ({ id: l.id, name: `${l.firstName} ${l.lastName}`, groupId: l.groupId })));
+      }
+    }
 
     return {
       data: leaders,
@@ -74,7 +101,7 @@ export class LeadersService {
       },
     };
   } catch (error) {
-    console.error('Error en findAll:', error);
+    console.error('Error en LeadersService.findAll:', error);
     throw error;
   }
 }
@@ -258,7 +285,6 @@ export class LeadersService {
         total,
         activos,
         verificados,
-        promedioVotantes,
         porGrupo,
         porBarrio,
         topLideres,
@@ -274,51 +300,66 @@ export class LeadersService {
   }
 
   // ✅ Query builder con filtros
-  private createQueryBuilder(filters: LeaderFiltersDto): SelectQueryBuilder<Leader> {
-    const queryBuilder = this.leaderRepository.createQueryBuilder('leader');
-    
-    // Aplicar filtros
-    if (filters.buscar) {
-      queryBuilder.andWhere(
-        '(leader.firstName LIKE :search OR leader.lastName LIKE :search OR leader.cedula LIKE :search)',
-        { search: `%${filters.buscar}%` }
-      );
-    }
+  private createQueryBuilder(filters: LeaderFiltersDto = {}): SelectQueryBuilder<Leader> {
+  const queryBuilder = this.leaderRepository.createQueryBuilder('leader');
 
-    if (filters.isActive !== undefined) {
-      queryBuilder.andWhere('leader.isActive = :isActive', { isActive: filters.isActive });
-    }
+  // ✅ AGREGAR: Join con grupo siempre para tener acceso a la relación
+  queryBuilder.leftJoin('leader.group', 'group');
+  queryBuilder.leftJoin('group.candidate', 'candidate');
 
-    if (filters.isVerified !== undefined) {
-      queryBuilder.andWhere('leader.isVerified = :isVerified', { isVerified: filters.isVerified });
-    }
-
-    if (filters.groupId) {
-      queryBuilder.andWhere('leader.groupId = :groupId', { groupId: filters.groupId });
-    }
-
-    if (filters.neighborhood) {
-      queryBuilder.andWhere('leader.neighborhood = :neighborhood', { neighborhood: filters.neighborhood });
-    }
-
-    if (filters.municipality) {
-      queryBuilder.andWhere('leader.municipality = :municipality', { municipality: filters.municipality });
-    }
-
-    if (filters.gender) {
-      queryBuilder.andWhere('leader.gender = :gender', { gender: filters.gender });
-    }
-
-    if (filters.fechaDesde) {
-      queryBuilder.andWhere('leader.createdAt >= :fechaDesde', { fechaDesde: filters.fechaDesde });
-    }
-
-    if (filters.fechaHasta) {
-      queryBuilder.andWhere('leader.createdAt <= :fechaHasta', { fechaHasta: filters.fechaHasta });
-    }
-
-    return queryBuilder;
+  // ✅ CORREGIR: Filtro por búsqueda general
+  if (filters.buscar) {
+    queryBuilder.andWhere(
+      '(leader.firstName LIKE :search OR leader.lastName LIKE :search OR leader.cedula LIKE :search OR leader.phone LIKE :search)',
+      { search: `%${filters.buscar}%` }
+    );
   }
+
+  // ✅ CORREGIR: Filtros básicos
+  if (filters.isActive !== undefined) {
+    queryBuilder.andWhere('leader.isActive = :isActive', { isActive: filters.isActive });
+  }
+
+  if (filters.isVerified !== undefined) {
+    queryBuilder.andWhere('leader.isVerified = :isVerified', { isVerified: filters.isVerified });
+  }
+
+  // ✅ CRÍTICO: Filtro por grupo (esta es la clave del problema)
+  if (filters.groupId) {
+    console.log('Applying groupId filter:', filters.groupId);
+    queryBuilder.andWhere('leader.groupId = :groupId', { groupId: filters.groupId });
+  }
+
+  // ✅ AGREGAR: Filtro por candidato
+  if (filters.candidateId) {
+    console.log('Applying candidateId filter:', filters.candidateId);
+    queryBuilder.andWhere('group.candidateId = :candidateId', { candidateId: filters.candidateId });
+  }
+
+  // ✅ CORREGIR: Filtros de ubicación
+  if (filters.neighborhood) {
+    queryBuilder.andWhere('leader.neighborhood = :neighborhood', { neighborhood: filters.neighborhood });
+  }
+
+  if (filters.municipality) {
+    queryBuilder.andWhere('leader.municipality = :municipality', { municipality: filters.municipality });
+  }
+
+  if (filters.gender) {
+    queryBuilder.andWhere('leader.gender = :gender', { gender: filters.gender });
+  }
+
+  // ✅ AGREGAR: Filtros de fecha
+  if (filters.fechaDesde) {
+    queryBuilder.andWhere('leader.createdAt >= :fechaDesde', { fechaDesde: filters.fechaDesde });
+  }
+
+  if (filters.fechaHasta) {
+    queryBuilder.andWhere('leader.createdAt <= :fechaHasta', { fechaHasta: filters.fechaHasta });
+  }
+
+  return queryBuilder;
+}
 
   // ✅ Obtener líder por ID
   async findOne(id: number): Promise<Leader> {
@@ -767,4 +808,95 @@ export class LeadersService {
       warnings,
     };
   }
+  async findByGroupId(groupId: number, page: number = 1, limit: number = 20): Promise<PaginatedResponse<Leader>> {
+  try {
+    console.log(`LeadersService.findByGroupId: ${groupId}`);
+    
+    const [leaders, total] = await this.leaderRepository.findAndCount({
+      where: { groupId },
+      relations: ['group', 'group.candidate', 'planillados'],
+      skip: (page - 1) * limit,
+      take: limit,
+      order: {
+        firstName: 'ASC',
+        lastName: 'ASC'
+      }
+    });
+
+    console.log(`Found ${total} leaders for group ${groupId}`);
+
+    return {
+      data: leaders,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPrevPage: page > 1,
+      },
+    };
+  } catch (error) {
+    console.error(`Error finding leaders for group ${groupId}:`, error);
+    throw error;
+  }
+}
+
+// ✅ AGREGAR: Método de diagnóstico
+async diagnoseGroupLeaders(groupId: number): Promise<any> {
+  try {
+    // Verificar que el grupo existe
+    const group = await this.groupRepository.findOne({ 
+      where: { id: groupId },
+      relations: ['candidate']
+    });
+
+    if (!group) {
+      return { error: `Group ${groupId} not found` };
+    }
+
+    // Contar líderes en el grupo
+    const leadersCount = await this.leaderRepository.count({ 
+      where: { groupId } 
+    });
+
+    // Obtener algunos líderes de ejemplo
+    const sampleLeaders = await this.leaderRepository.find({
+      where: { groupId },
+      take: 3,
+      relations: ['group']
+    });
+
+    // Verificar líderes activos vs inactivos
+    const activeCount = await this.leaderRepository.count({ 
+      where: { groupId, isActive: true } 
+    });
+    const inactiveCount = await this.leaderRepository.count({ 
+      where: { groupId, isActive: false } 
+    });
+
+    return {
+      group: {
+        id: group.id,
+        name: group.name,
+        isActive: group.isActive,
+        candidate: group.candidate?.name
+      },
+      leaders: {
+        total: leadersCount,
+        active: activeCount,
+        inactive: inactiveCount,
+        samples: sampleLeaders.map(l => ({
+          id: l.id,
+          name: `${l.firstName} ${l.lastName}`,
+          isActive: l.isActive,
+          isVerified: l.isVerified
+        }))
+      }
+    };
+  } catch (error) {
+    console.error('Error in diagnoseGroupLeaders:', error);
+    return { error: error.message };
+  }
+}
 }

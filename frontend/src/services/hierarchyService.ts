@@ -207,6 +207,36 @@ export interface HierarchyStats {
     byGender: Record<string, number>;
   };
 }
+export interface CompatibleLeader {
+  id: number;
+  cedula: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  neighborhood?: string;
+  municipality?: string;
+  meta: number;
+  isActive: boolean;
+  isVerified: boolean;
+  groupId: number;
+  group?: {
+    id: number;
+    name: string;
+    meta: number;
+    isActive: boolean;
+    candidateId: number;
+    candidate?: {
+      id: number;
+      name: string;
+    };
+  };
+  planilladosCount: number;
+  votersCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
 
 // Ruta de navegación para breadcrumbs
 export interface NavigationPath {
@@ -228,6 +258,7 @@ export interface GlobalSearchResult {
     leadersCount: number;
     planilladosCount: number;
   };
+  
 }
 
 // =====================================
@@ -284,27 +315,38 @@ class HierarchyService {
 
   // ✅ Obtener líderes de un grupo específico
   async getLeadersByGroup(
-    groupId: number,
-    filters: HierarchyFilters = {},
-    page: number = 1,
-    limit: number = 20
-  ): Promise<PaginatedResponse<HierarchyLeader>> {
-    try {
-      const params = new URLSearchParams({
-        groupId: groupId.toString(),
-        page: page.toString(),
-        limit: limit.toString(),
-        includeStats: 'true',
-        ...this.buildFilterParams(filters),
-      });
+  groupId: number,
+  filters: HierarchyFilters = {},
+  page: number = 1,
+  limit: number = 20
+): Promise<PaginatedResponse<HierarchyLeader>> {
+  try {
+    const params = new URLSearchParams({
+      // ✅ CORRECCIÓN: Usar el mismo parámetro que el backend espera
+      groupId: groupId.toString(),
+      page: page.toString(),
+      limit: limit.toString(),
+      includeStats: 'true',
+      ...this.buildFilterParams(filters),
+    });
 
-      const response = await apiClient.get(`/leaders?${params}`);
-      return this.transformLeadersResponse(response.data);
-    } catch (error: any) {
-      console.error('Error fetching leaders:', error);
-      throw new Error(error.response?.data?.message || 'Error al cargar líderes');
-    }
+    // ✅ CORRECCIÓN: Verificar que el endpoint coincida con el backend
+    const response = await apiClient.get(`/leaders?${params}`);
+    
+    // ✅ AGREGAR: Logging para debug
+    console.log('Hierarchy - Leaders request:', {
+      groupId,
+      url: `/leaders?${params}`,
+      filters
+    });
+    
+    return this.transformLeadersResponse(response.data);
+  } catch (error: any) {
+    console.error('Error fetching leaders by group:', error);
+    console.error('Request details:', { groupId, filters, page, limit });
+    throw new Error(error.response?.data?.message || 'Error al cargar líderes');
   }
+}
 
   // ✅ Obtener planillados de un líder específico
   async getPlanilladosByLeader(
@@ -485,17 +527,35 @@ class HierarchyService {
   // =====================================
 
   // Construir parámetros de filtro
-  private buildFilterParams(filters: HierarchyFilters): Record<string, string> {
-    const params: Record<string, string> = {};
-    
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        params[key] = value.toString();
-      }
-    });
-    
-    return params;
-  }
+ private buildFilterParams(filters: HierarchyFilters): Record<string, string> {
+  const params: Record<string, string> = {};
+
+  // ✅ CORRECCIÓN: Asegurar que los nombres coincidan con el backend
+  if (filters.buscar) params.buscar = filters.buscar;
+  if (filters.isActive !== undefined) params.isActive = filters.isActive.toString();
+  if (filters.isVerified !== undefined) params.isVerified = filters.isVerified.toString();
+  if (filters.candidateId) params.candidateId = filters.candidateId.toString();
+  if (filters.groupId) params.groupId = filters.groupId.toString();
+  if (filters.leaderId) params.leaderId = filters.leaderId.toString();
+  
+  // ✅ AGREGAR: Mapear campos de ubicación correctamente
+  if (filters.neighborhood) params.neighborhood = filters.neighborhood;
+  if (filters.municipality) params.municipality = filters.municipality;
+  if (filters.zone) params.zone = filters.zone;
+  if (filters.party) params.party = filters.party;
+  
+  // ✅ AGREGAR: Mapear campos de planillados
+  if (filters.estado) params.estado = filters.estado;
+  if (filters.esEdil !== undefined) params.esEdil = filters.esEdil.toString();
+  if (filters.genero) params.genero = filters.genero;
+  
+  // ✅ AGREGAR: Fechas
+  if (filters.fechaDesde) params.fechaDesde = filters.fechaDesde;
+  if (filters.fechaHasta) params.fechaHasta = filters.fechaHasta;
+
+  return params;
+}
+
 
   // Transformar respuesta de candidatos
   private transformCandidatesResponse(data: any): PaginatedResponse<HierarchyCandidate> {
@@ -529,9 +589,12 @@ class HierarchyService {
 
   // Transformar respuesta de líderes
   private transformLeadersResponse(data: any): PaginatedResponse<HierarchyLeader> {
+  // ✅ VERIFICAR: Estructura de respuesta del backend
+  if (!data) {
+    console.warn('No data received from leaders endpoint');
     return {
-      data: data.data?.map((item: any) => this.transformSingleLeader(item)) || [],
-      meta: data.meta || {
+      data: [],
+      meta: {
         total: 0,
         page: 1,
         limit: 20,
@@ -541,6 +604,23 @@ class HierarchyService {
       }
     };
   }
+
+  // ✅ CORRECCIÓN: Manejar diferentes estructuras de respuesta
+  const leaders = Array.isArray(data) ? data : data.data || [];
+  const meta = data.meta || {
+    total: leaders.length,
+    page: 1,
+    limit: 20,
+    totalPages: Math.ceil(leaders.length / 20),
+    hasNextPage: false,
+    hasPrevPage: false
+  };
+
+  return {
+    data: leaders.map((leader: any) => this.transformSingleLeader(leader)),
+    meta
+  };
+}
 
   // Transformar respuesta de planillados
   private transformPlanilladosResponse(data: any): PaginatedResponse<HierarchyPlanillado> {
@@ -601,34 +681,39 @@ class HierarchyService {
 
   // Transformar líder individual
   private transformSingleLeader(data: any): HierarchyLeader {
-    return {
-      id: data.id,
-      cedula: data.cedula,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      phone: data.phone,
-      email: data.email,
-      address: data.address,
-      neighborhood: data.neighborhood,
-      municipality: data.municipality,
-      meta: data.meta || 0,
-      isActive: data.isActive ?? true,
-      isVerified: data.isVerified ?? false,
-      groupId: data.groupId,
-      group: data.group ? {
-        id: data.group.id,
-        name: data.group.name,
-        candidate: data.group.candidate ? {
-          id: data.group.candidate.id,
-          name: data.group.candidate.name
-        } : undefined
-      } : undefined,
-      votersCount: data.votersCount || 0,
-      planilladosCount: data.planilladosCount || 0,
-      createdAt: data.createdAt,
-      updatedAt: data.updatedAt
-    };
+  if (!data) {
+    console.warn('Received null/undefined leader data');
+    return {} as HierarchyLeader;
   }
+
+  return {
+    id: data.id,
+    cedula: data.cedula,
+    firstName: data.firstName,
+    lastName: data.lastName,
+    phone: data.phone,
+    email: data.email,
+    address: data.address,
+    neighborhood: data.neighborhood,
+    municipality: data.municipality,
+    meta: data.meta || 0,
+    isActive: data.isActive ?? true,
+    isVerified: data.isVerified ?? false,
+    groupId: data.groupId,
+    group: data.group ? {
+      id: data.group.id,
+      name: data.group.name,
+      candidate: data.group.candidate ? {
+        id: data.group.candidate.id,
+        name: data.group.candidate.name
+      } : undefined
+    } : undefined,
+    votersCount: data.votersCount || data.planilladosCount || 0,
+    planilladosCount: data.planilladosCount || 0,
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt
+  };
+}
 
   // Transformar planillado individual
   private transformSinglePlanillado(data: any): HierarchyPlanillado {
@@ -669,59 +754,63 @@ class HierarchyService {
   }
 
   // Fallback para estadísticas cuando no hay endpoint unificado
-  private async getStatsFallback(_filters: HierarchyFilters): Promise<HierarchyStats> {
-    try {
-      const [candidatesStats, groupsStats, leadersStats, planilladosStats] = await Promise.allSettled([
-        apiClient.get('/candidates/stats'),
-        apiClient.get('/groups/stats'),
-        apiClient.get('/leaders/stats'),
-        apiClient.get('/planillados/stats')
-      ]);
+  private async getStatsFallback(_filters: HierarchyFilters = {}): Promise<HierarchyStats> {
+  try {
+    // Llamadas individuales a cada endpoint
+    const [candidatesRes, groupsRes, leadersRes, planilladosRes] = await Promise.allSettled([
+      apiClient.get('/candidates/stats'),
+      apiClient.get('/groups/stats'),
+      apiClient.get('/leaders/stats'),
+      apiClient.get('/planillados/stats')
+    ]);
 
-      const stats: HierarchyStats = {
-        candidates: candidatesStats.status === 'fulfilled' 
-          ? { 
-              total: candidatesStats.value.data.total || 0, 
-              active: candidatesStats.value.data.activos || 0,
-              byParty: candidatesStats.value.data.porPartido || {}
-            }
-          : { total: 0, active: 0, byParty: {} },
-        groups: groupsStats.status === 'fulfilled'
-          ? { 
-              total: groupsStats.value.data.total || 0, 
-              active: groupsStats.value.data.activos || 0,
-              byCandidate: groupsStats.value.data.porCandidato || {},
-              byZone: groupsStats.value.data.porZona || {}
-            }
-          : { total: 0, active: 0, byCandidate: {}, byZone: {} },
-        leaders: leadersStats.status === 'fulfilled'
-          ? { 
-              total: leadersStats.value.data.total || 0, 
-              active: leadersStats.value.data.activos || 0,
-              verified: leadersStats.value.data.verificados || 0,
-              byGroup: leadersStats.value.data.porGrupo || {},
-              byNeighborhood: leadersStats.value.data.porBarrio || {}
-            }
-          : { total: 0, active: 0, verified: 0, byGroup: {}, byNeighborhood: {} },
-        planillados: planilladosStats.status === 'fulfilled'
-          ? { 
-              total: planilladosStats.value.data.total || 0, 
-              verified: planilladosStats.value.data.verificados || 0,
-              pendientes: planilladosStats.value.data.pendientes || 0,
-              ediles: planilladosStats.value.data.ediles || 0,
-              byLeader: planilladosStats.value.data.porLider || {},
-              byGroup: planilladosStats.value.data.porGrupo || {},
-              byMunicipality: planilladosStats.value.data.porMunicipio || {},
-              byGender: planilladosStats.value.data.porGenero || {}
-            }
-          : { total: 0, verified: 0, pendientes: 0, ediles: 0, byLeader: {}, byGroup: {}, byMunicipality: {}, byGender: {} }
-      };
+    // Procesar resultados
+    const candidatesStats = candidatesRes.status === 'fulfilled' ? candidatesRes.value.data : null;
+    const groupsStats = groupsRes.status === 'fulfilled' ? groupsRes.value.data : null;
+    const leadersStats = leadersRes.status === 'fulfilled' ? leadersRes.value.data : null;
+    const planilladosStats = planilladosRes.status === 'fulfilled' ? planilladosRes.value.data : null;
 
-      return stats;
-    } catch (error) {
-      throw new Error('Error al cargar estadísticas');
-    }
+    return {
+      candidates: {
+        total: candidatesStats?.total || 0,
+        active: candidatesStats?.activos || 0,
+        byParty: candidatesStats?.porPartido || {}
+      },
+      groups: {
+        total: groupsStats?.total || 0,
+        active: groupsStats?.activos || 0,
+        byCandidate: groupsStats?.porCandidato || {},
+        byZone: groupsStats?.porZona || {}
+      },
+      leaders: {
+        total: leadersStats?.total || 0,
+        active: leadersStats?.activos || 0,
+        verified: leadersStats?.verificados || 0,
+        byGroup: leadersStats?.porGrupo || {},
+        byNeighborhood: leadersStats?.porBarrio || {}
+      },
+      planillados: {
+        total: planilladosStats?.total || 0,
+        verified: planilladosStats?.verificados || 0,
+        pendientes: planilladosStats?.pendientes || 0,
+        ediles: planilladosStats?.ediles || 0,
+        byLeader: planilladosStats?.porLider || {},
+        byGroup: planilladosStats?.porGrupo || {},
+        byMunicipality: planilladosStats?.porMunicipio || {},
+        byGender: planilladosStats?.porGenero || {}
+      }
+    };
+  } catch (error) {
+    console.error('Error in stats fallback:', error);
+    // Retornar estructura vacía pero válida
+    return {
+      candidates: { total: 0, active: 0, byParty: {} },
+      groups: { total: 0, active: 0, byCandidate: {}, byZone: {} },
+      leaders: { total: 0, active: 0, verified: 0, byGroup: {}, byNeighborhood: {} },
+      planillados: { total: 0, verified: 0, pendientes: 0, ediles: 0, byLeader: {}, byGroup: {}, byMunicipality: {}, byGender: {} }
+    };
   }
+}
 
   // Fallback para búsqueda global cuando no hay endpoint unificado
   private async globalSearchFallback(
